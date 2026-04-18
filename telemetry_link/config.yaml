@@ -1,0 +1,58 @@
+# 连接类型，可选 serial / udp
+connection_type: serial
+
+# 串口设备路径，connection_type=serial 时生效
+serial_port: /dev/ttyUSB0
+
+# 串口波特率，应与飞控 SERIALx_BAUD 配置匹配
+baudrate: 115200
+
+# UDP 模式，可选 udpin / udpout；适合 SITL 或网络链路测试
+udp_mode: udpin
+
+# UDP 主机地址；udpin 常用 0.0.0.0，udpout 常用目标地址
+udp_host: 0.0.0.0
+
+# UDP 端口
+udp_port: 14550
+
+# 连续控制命令最大发送频率，避免占满链路
+control_send_rate_hz: 10
+
+# 动作命令发送后的默认重试次数
+action_cmd_retries: 3
+
+# 动作命令重试间隔秒数
+action_retry_interval_sec: 0.5
+
+# 心跳超时秒数，超过该时间未收到心跳则判定链路中断
+heartbeat_timeout_sec: 3.0
+
+# 任意消息接收超时秒数，超过该时间未收到任何消息则判定链路异常
+rx_timeout_sec: 2.0
+
+# 断线后的重连间隔秒数
+reconnect_interval_sec: 2.0
+
+# 接收线程空闲轮询间隔秒数
+receiver_idle_sleep_sec: 0.01
+
+# 发送线程空闲轮询间隔秒数
+sender_idle_sleep_sec: 0.01
+
+# 启动后是否主动请求常用消息的发送频率
+request_message_intervals: true
+
+# 使用 MAV_CMD_SET_MESSAGE_INTERVAL 请求消息频率时的默认频率
+message_interval_hz:
+  HEARTBEAT: 1
+  ATTITUDE: 10
+  GLOBAL_POSITION_INT: 10
+  LOCAL_POSITION_NED: 10
+  VFR_HUD: 5
+  SYS_STATUS: 2
+  GPS_RAW_INT: 2
+  RC_CHANNELS: 2
+
+# 日志级别，可选 DEBUG / INFO / WARNING / ERROR
+log_level: INFO

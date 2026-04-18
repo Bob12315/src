@@ -1,0 +1,65 @@
+# YOLO 模型权重路径，支持官方模型或自定义训练得到的 .pt 文件
+model_path: "./yolo11n.pt"
+
+# 视频输入源，支持 /dev/video0、/dev/video1、数字索引、RTSP、本地视频文件
+source: "/dev/video2"
+
+# YOLO 推理尺寸，常用 640；数值越大通常越准，但推理耗时也会增加
+img_size: 640
+
+# 检测置信度阈值，越高越严格，误检更少但漏检可能变多
+conf_thres: 0.25
+
+# NMS 的 IOU 阈值，用于控制重叠候选框的抑制
+iou_thres: 0.45
+
+# 官方 tracking 配置文件，当前推荐固定使用 ByteTrack
+tracker: "bytetrack.yaml"
+
+# 推理设备，"0" 表示第 0 张 GPU，"cpu" 表示 CPU 推理
+device: "0"
+
+# 类别过滤列表，空列表表示不过滤；例如 [0] 表示只保留 class_id=0
+classes: []
+
+# 当前唯一主目标 JSON 通过 UDP 发送到的目标 IP
+udp_ip: "127.0.0.1"
+
+# 当前唯一主目标 JSON 通过 UDP 发送到的目标端口
+udp_port: 5005
+
+# 自动选主目标策略，可选 center、biggest、class
+selection_mode: "class"
+
+# 当 selection_mode=class 时优先选择的类别名，例如 person、car
+target_class: "person"
+
+# 锁定目标连续丢失多少帧后判定为真正丢失并自动解锁
+max_lost_frames: 5
+
+# 是否显示 OpenCV 可视化窗口；无图形界面或不需要显示时设为 false
+show: true
+
+# 是否保存带标注的视频结果
+save_video: false
+
+# 保存视频输出路径，save_video=true 时生效
+save_path: "runs/track_output.mp4"
+
+# 普通目标框线宽；锁定目标会在此基础上额外加粗
+line_width: 5
+
+# 是否绘制所有可见 tracks；false 时可减少画面信息量
+show_all_tracks: true
+
+# 是否启用命令接收模块，用于外部发送切换/锁定/解锁命令
+command_enabled: true
+
+# 命令监听 IP，通常 0.0.0.0 表示监听本机所有网卡
+command_ip: "0.0.0.0"
+
+# 命令监听端口，用于接收 switch_next、switch_prev、lock_target 等 UDP 命令
+command_port: 5006
+
+# OpenCV 显示窗口名称，show=true 时生效
+window_name: "YOLO Tracking"
