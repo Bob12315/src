@@ -12,6 +12,8 @@ from telemetry_parser import (
     decode_copter_mode,
     global_position_is_valid,
     heartbeat_is_armed,
+    parse_gimbal_device_attitude_status,
+    parse_mount_status,
     parse_sys_status_values,
 )
 
@@ -66,7 +68,7 @@ class TelemetryReceiver(threading.Thread):
         if msg_type == "HEARTBEAT":
             armed = heartbeat_is_armed(message.base_mode)
             mode = decode_copter_mode(message.custom_mode)
-            self.state_cache.update_state(
+            self.state_cache.update_drone_state(
                 connected=True,
                 stale=False,
                 armed=armed,
@@ -84,7 +86,7 @@ class TelemetryReceiver(threading.Thread):
             return
 
         if msg_type == "ATTITUDE":
-            self.state_cache.update_state(
+            self.state_cache.update_drone_state(
                 attitude_valid=True,
                 roll=float(message.roll),
                 pitch=float(message.pitch),
@@ -92,30 +94,34 @@ class TelemetryReceiver(threading.Thread):
                 roll_rate=float(message.rollspeed),
                 pitch_rate=float(message.pitchspeed),
                 yaw_rate=float(message.yawspeed),
+                last_attitude_time=now,
             )
             return
 
         if msg_type == "GLOBAL_POSITION_INT":
             lat = float(message.lat) / 1e7
             lon = float(message.lon) / 1e7
-            self.state_cache.update_state(
+            self.state_cache.update_drone_state(
                 altitude_valid=True,
                 lat=lat,
                 lon=lon,
                 altitude=float(message.alt) / 1000.0,
                 relative_altitude=float(message.relative_alt) / 1000.0,
                 relative_alt_valid=True,
+                last_altitude_time=now,
+                last_global_position_time=now,
+                last_relative_alt_time=now,
                 global_position_valid=global_position_is_valid(
                     lat,
                     lon,
-                    self.state_cache.get_latest_state_raw().gps_fix_type,
+                    self.state_cache.get_latest_drone_state_raw().gps_fix_type,
                 ),
             )
             return
 
         if msg_type == "LOCAL_POSITION_NED":
-            raw_state = self.state_cache.get_latest_state_raw()
-            self.state_cache.update_state(
+            raw_state = self.state_cache.get_latest_drone_state_raw()
+            self.state_cache.update_drone_state(
                 velocity_valid=True,
                 vx=float(message.vx),
                 vy=float(message.vy),
@@ -126,15 +132,19 @@ class TelemetryReceiver(threading.Thread):
                 relative_altitude=float(-message.z),
                 local_position_valid=True,
                 relative_alt_valid=True,
+                last_local_position_time=now,
+                last_relative_alt_time=now,
             )
             return
 
         if msg_type == "VFR_HUD":
-            self.state_cache.update_state(
+            self.state_cache.update_drone_state(
                 altitude_valid=True,
                 altitude=float(message.alt),
                 relative_altitude=float(message.alt),
                 relative_alt_valid=True,
+                last_altitude_time=now,
+                last_relative_alt_time=now,
             )
             return
 
@@ -144,18 +154,19 @@ class TelemetryReceiver(threading.Thread):
                 message.current_battery,
                 message.battery_remaining,
             )
-            self.state_cache.update_state(
+            self.state_cache.update_drone_state(
                 battery_valid=True,
                 battery_voltage=voltage_v,
                 battery_remaining=int(round(percentage * 100.0)) if percentage == percentage else -1,
+                last_battery_time=now,
             )
             return
 
         if msg_type == "GPS_RAW_INT":
             gps_fix_type = int(message.fix_type)
             satellites_visible = int(message.satellites_visible)
-            raw_state = self.state_cache.get_latest_state_raw()
-            self.state_cache.update_state(
+            raw_state = self.state_cache.get_latest_drone_state_raw()
+            self.state_cache.update_drone_state(
                 gps_fix_type=gps_fix_type,
                 satellites_visible=satellites_visible,
                 gps_eph=float(getattr(message, "eph", -1)) / 100.0 if int(getattr(message, "eph", -1)) >= 0 else -1.0,
@@ -164,5 +175,56 @@ class TelemetryReceiver(threading.Thread):
             )
             return
 
+        if msg_type == "MOUNT_STATUS":
+            if self._should_ignore_mount_status(now):
+                return
+            pitch_deg, roll_deg, yaw_deg = parse_mount_status(
+                int(message.pointing_a),
+                int(message.pointing_b),
+                int(message.pointing_c),
+            )
+            self.state_cache.update_gimbal_state(
+                gimbal_valid=True,
+                pitch=pitch_deg,
+                roll=roll_deg,
+                yaw=yaw_deg,
+                source_msg_type="MOUNT_STATUS",
+                last_update_time=now,
+                raw_quaternion=None,
+            )
+            return
+
+        if msg_type == "GIMBAL_DEVICE_ATTITUDE_STATUS":
+            pitch_deg, roll_deg, yaw_deg, valid = self._parse_gimbal_device_attitude(message)
+            self.state_cache.update_gimbal_state(
+                gimbal_valid=valid,
+                yaw=yaw_deg,
+                pitch=pitch_deg,
+                roll=roll_deg,
+                source_msg_type="GIMBAL_DEVICE_ATTITUDE_STATUS",
+                last_update_time=now,
+                raw_quaternion=tuple(float(v) for v in getattr(message, "q", [])) or None,
+            )
+            return
+
         if msg_type == "RC_CHANNELS":
             return
+
+    def _parse_gimbal_device_attitude(self, message) -> tuple[float, float, float, bool]:
+        q = [float(v) for v in getattr(message, "q", [])]
+        if len(q) != 4:
+            return 0.0, 0.0, 0.0, False
+        try:
+            pitch_deg, roll_deg, yaw_deg = parse_gimbal_device_attitude_status(q)
+        except Exception as exc:
+            self.logger.debug("failed to decode gimbal quaternion: %s", exc)
+            return 0.0, 0.0, 0.0, False
+        return float(pitch_deg), float(roll_deg), float(yaw_deg), True
+
+    def _should_ignore_mount_status(self, now: float) -> bool:
+        current = self.state_cache.get_latest_gimbal_state_raw()
+        if current.source_msg_type != "GIMBAL_DEVICE_ATTITUDE_STATUS":
+            return False
+        if current.last_update_time <= 0:
+            return False
+        return (now - current.last_update_time) <= self.cfg.rx_timeout_sec

@@ -1,20 +1,30 @@
-# 连接类型，可选 serial / udp
-connection_type: serial
+# 数据源模式：real / sitl / dual
+data_source: real
 
-# 串口设备路径，connection_type=serial 时生效
-serial_port: /dev/ttyUSB0
+# 当前对外暴露状态与发送控制命令的 active source：real / sitl
+active_source: real
 
-# 串口波特率，应与飞控 SERIALx_BAUD 配置匹配
-baudrate: 115200
+sitl:
+  # SITL 推荐使用 tcp 连接
+  connection_type: tcp
+  serial_port: /dev/ttyUSB1
+  baudrate: 115200
+  udp_mode: udpin
+  udp_host: 0.0.0.0
+  udp_port: 14550
+  tcp_host: 127.0.0.1
+  tcp_port: 5760
 
-# UDP 模式，可选 udpin / udpout；适合 SITL 或网络链路测试
-udp_mode: udpin
-
-# UDP 主机地址；udpin 常用 0.0.0.0，udpout 常用目标地址
-udp_host: 0.0.0.0
-
-# UDP 端口
-udp_port: 14550
+real:
+  # 真机推荐使用 serial 连接
+  connection_type: serial
+  serial_port: /dev/ttyUSB0
+  baudrate: 57600
+  udp_mode: udpin
+  udp_host: 0.0.0.0
+  udp_port: 14550
+  tcp_host: 127.0.0.1
+  tcp_port: 5760
 
 # 连续控制命令最大发送频率，避免占满链路
 control_send_rate_hz: 10
@@ -43,6 +53,9 @@ sender_idle_sleep_sec: 0.01
 # 启动后是否主动请求常用消息的发送频率
 request_message_intervals: true
 
+# 云台控制使用的 mount mode，默认 2 = MAVLink Targeting
+gimbal_mount_mode: 2
+
 # 使用 MAV_CMD_SET_MESSAGE_INTERVAL 请求消息频率时的默认频率
 message_interval_hz:
   HEARTBEAT: 1
@@ -53,6 +66,17 @@ message_interval_hz:
   SYS_STATUS: 2
   GPS_RAW_INT: 2
   RC_CHANNELS: 2
+  MOUNT_STATUS: 5
+  GIMBAL_DEVICE_ATTITUDE_STATUS: 10
+
+# 是否把最新 drone/gimbal/link 状态通过本地 UDP 发给 fusion 等上层进程
+state_udp_enabled: true
+
+# 状态广播目的 IP
+state_udp_ip: "127.0.0.1"
+
+# 状态广播目的端口
+state_udp_port: 5010
 
 # 日志级别，可选 DEBUG / INFO / WARNING / ERROR
 log_level: INFO

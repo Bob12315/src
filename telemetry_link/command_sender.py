@@ -5,6 +5,7 @@ import threading
 import time
 
 from pymavlink import mavutil
+from pymavlink.dialects.v20 import ardupilotmega
 
 from command_queue import CommandQueue
 from config import TelemetryConfig
@@ -82,6 +83,7 @@ class CommandSender(threading.Thread):
     def _send_action(self, command: ActionCommand) -> None:
         try:
             if command.action_type == ActionType.ARM:
+                self.logger.info("sending action command=arm")
                 self.client.send_raw_message(
                     lambda master: self._command_long(
                         master,
@@ -90,6 +92,7 @@ class CommandSender(threading.Thread):
                     )
                 )
             elif command.action_type == ActionType.DISARM:
+                self.logger.info("sending action command=disarm")
                 self.client.send_raw_message(
                     lambda master: self._command_long(
                         master,
@@ -98,13 +101,41 @@ class CommandSender(threading.Thread):
                     )
                 )
             elif command.action_type == ActionType.SET_MODE:
+                self.logger.info("sending action command=set_mode mode=%s", str(command.params["mode"]))
                 self.client.send_raw_message(lambda master: self._send_set_mode(master, str(command.params["mode"])))
             elif command.action_type == ActionType.REQUEST_MESSAGE_INTERVAL:
+                self.logger.info(
+                    "sending action command=request_message_interval message=%s rate_hz=%.2f",
+                    str(command.params["message_name"]),
+                    float(command.params["rate_hz"]),
+                )
                 self.client.send_raw_message(
                     lambda master: self._send_message_interval_request(
                         master,
                         message_name=str(command.params["message_name"]),
                         rate_hz=float(command.params["rate_hz"]),
+                    )
+                )
+            elif command.action_type == ActionType.GIMBAL_ANGLE:
+                self.logger.info(
+                    "sending action command=gimbal_angle pitch=%.2f yaw=%.2f roll=%.2f mount_mode=%s",
+                    float(command.params["pitch"]),
+                    float(command.params["yaw"]),
+                    float(command.params.get("roll", 0.0)),
+                    int(command.params.get("mount_mode", self.cfg.gimbal_mount_mode)),
+                )
+                self.client.send_raw_message(
+                    lambda master: self._send_gimbal_angle(
+                        master,
+                        pitch=float(command.params["pitch"]),
+                        yaw=float(command.params["yaw"]),
+                        roll=float(command.params.get("roll", 0.0)),
+                        mount_mode=int(
+                            command.params.get(
+                                "mount_mode",
+                                self.cfg.gimbal_mount_mode,
+                            )
+                        ),
                     )
                 )
             else:
@@ -202,7 +233,11 @@ class CommandSender(threading.Thread):
         )
 
     def _send_message_interval_request(self, master, message_name: str, rate_hz: float) -> None:
-        message_id = getattr(mavutil.mavlink, f"MAVLINK_MSG_ID_{message_name}")
+        message_id = getattr(mavutil.mavlink, f"MAVLINK_MSG_ID_{message_name}", None)
+        if message_id is None:
+            message_id = getattr(ardupilotmega, f"MAVLINK_MSG_ID_{message_name}", None)
+        if message_id is None:
+            raise ValueError(f"unknown MAVLink message name: {message_name}")
         interval_us = int(1e6 / rate_hz) if rate_hz > 0 else -1
         master.mav.command_long_send(
             master.target_system,
@@ -216,4 +251,27 @@ class CommandSender(threading.Thread):
             0,
             0,
             0,
+        )
+
+    def _send_gimbal_angle(
+        self,
+        master,
+        *,
+        pitch: float,
+        yaw: float,
+        roll: float,
+        mount_mode: int,
+    ) -> None:
+        master.mav.command_long_send(
+            master.target_system,
+            master.target_component,
+            mavutil.mavlink.MAV_CMD_DO_MOUNT_CONTROL,
+            0,
+            pitch,
+            roll,
+            yaw,
+            0.0,
+            0.0,
+            0.0,
+            float(mount_mode),
         )

@@ -60,7 +60,7 @@ yolo_app/
 - `main.py`：主入口，负责把各个模块串起来。
 - `config.yaml`：默认配置文件。
 - `config.py`：加载配置文件并支持命令行覆盖。
-- `video_source.py`：统一处理摄像头、RTSP、本地视频文件输入。
+- `video_source.py`：统一处理 `/dev/videoX`、UDP 端口、RTSP、本地视频文件输入。
 - `tracker_runner.py`：官方 tracking 调用封装层，只负责 `model.track(...)` 和结果解析。
 - `target_manager.py`：负责主目标自动选择、锁定、切换、丢失计数。
 - `udp_publisher.py`：按固定 JSON 协议输出当前唯一主目标。
@@ -114,9 +114,22 @@ model_path: "/home/level6/models/best.pt"
 
 - `/dev/video0`
 - `/dev/video1`
-- 数字摄像头索引，例如 `0`
+- UDP 端口号，例如 `5600`
 - RTSP 地址
 - 本地视频文件，例如 `demo.mp4`
+- 完整 GStreamer pipeline
+
+推荐填写方式：
+
+- 如果是视频设备，直接填 `/dev/videoX`
+- 如果是 UDP H264/RTP 输入，直接填端口号，例如 `5600`
+
+也就是说：
+
+- `video` 就填 `/dev/videoX`
+- `udp` 就填端口号
+
+程序内部会自动判断并接入。
 
 ## 4. 主流程说明
 
@@ -179,6 +192,87 @@ python3 main.py \
   --source /home/level6/videos/test.mp4
 ```
 
+### 5.4.1 使用 UDP 端口输入启动
+
+如果你的输入来自本机某个 UDP 端口，例如：
+
+- `127.0.0.1:5600`
+
+现在推荐直接这样启动：
+
+```bash
+python3 main.py \
+  --model-path /home/level6/models/best.pt \
+  --source 5600
+```
+
+或者在 [config.yaml](/home/level6/uav_project/src/yolo_app/config.yaml) 中写：
+
+```yaml
+source: "5600"
+```
+
+程序内部会自动完成：
+
+```text
+UDP port
+-> internal system-python GStreamer helper
+-> H264 decode
+-> raw frame pipe
+-> YOLO
+```
+
+### 5.4.2 如需手动指定完整 GStreamer pipeline
+
+如果你的图传或本地转发输出是 GStreamer 可解析的视频流，例如：
+
+- UDP + RTP + H264
+
+可以直接把完整 pipeline 作为 `source` 传入。
+
+本项目当前已经在本机验证通过下面这个例子：
+
+```text
+udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,payload=96 ! rtph264depay ! avdec_h264 ! videoconvert ! appsink drop=true sync=false
+```
+
+对应启动命令：
+
+```bash
+python3 main.py \
+  --model-path /home/level6/models/best.pt \
+  --source "udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,payload=96 ! rtph264depay ! avdec_h264 ! videoconvert ! appsink drop=true sync=false"
+```
+
+如果你希望直接写到配置文件中，可以在 [config.yaml](/home/level6/uav_project/src/yolo_app/config.yaml) 中这样改：
+
+```yaml
+source: "udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,payload=96 ! rtph264depay ! avdec_h264 ! videoconvert ! appsink drop=true sync=false"
+```
+
+说明：
+
+- `udpsrc port=5600`：监听本机 5600 端口
+- `application/x-rtp,media=video,encoding-name=H264,payload=96`：声明该 UDP 数据是 RTP/H264
+- `rtph264depay`：去掉 RTP 封装
+- `avdec_h264`：H264 解码
+- `videoconvert`：转换成 OpenCV 更容易接收的图像格式
+- `appsink drop=true sync=false`：把数据送给 OpenCV，并尽量降低延迟
+
+注意：
+
+- 这一路输入不是简单的 `udp://127.0.0.1:5600`
+- 而是通过 GStreamer pipeline 显式告诉 OpenCV 如何解封装和解码
+- 如果直接写成 `udp://127.0.0.1:5600`，当前环境下不一定能识别成视频流
+
+当前机器已经确认：
+
+- 系统 Python 环境带 GStreamer 支持
+- 上述 pipeline 可以成功打开并读到 `(480, 640, 3)` 图像帧
+- `yolo` conda 环境中的 OpenCV 没有 GStreamer 支持
+- 因此普通 UDP 端口模式会通过内部 helper 完成低延迟桥接
+- 完整 GStreamer pipeline 仍然兼容，但更推荐直接写端口号
+
 ### 5.5 保存结果视频
 
 ```bash
@@ -205,7 +299,7 @@ python3 main.py \
 当前主要参数说明如下：
 
 - `model_path`：YOLO 模型 `.pt` 路径
-- `source`：视频源，可为 `/dev/video0`、RTSP、本地视频文件、数字索引
+- `source`：视频源，可为 `/dev/video0`、UDP 端口号、RTSP、本地视频文件，或完整 GStreamer pipeline
 - `img_size`：YOLO 推理尺寸
 - `conf_thres`：检测置信度阈值
 - `iou_thres`：NMS IOU 阈值
@@ -520,6 +614,44 @@ python3 main.py \
   --save-video true \
   --save-path /home/level6/uav_project/output/test_track.mp4
 ```
+
+### 场景 5：使用本机 5600 端口的 GStreamer UDP H264 流
+
+```bash
+python3 main.py \
+  --model-path /home/level6/models/best.pt \
+  --source "udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,payload=96 ! rtph264depay ! avdec_h264 ! videoconvert ! appsink drop=true sync=false" \
+  --show true
+```
+
+### 场景 6：把 GStreamer 流写入配置文件后直接启动
+
+先修改 [config.yaml](/home/level6/uav_project/src/yolo_app/config.yaml)：
+
+```yaml
+source: "udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,payload=96 ! rtph264depay ! avdec_h264 ! videoconvert ! appsink drop=true sync=false"
+```
+
+然后启动：
+
+```bash
+cd /home/level6/uav_project/src/yolo_app
+python3 main.py
+```
+
+## 14.1 GStreamer 使用建议
+
+如果你后面继续使用 UDP H264 图传，建议优先采用 GStreamer pipeline 方式，而不是 `udp://...` 方式。
+
+原因：
+
+- 能显式指定流格式
+- 更适合 RTP/H264 输入
+- 更容易控制低延迟行为
+- 当前机器已经实测可用
+- 当前代码已经对 GStreamer pipeline 做了显式后端选择，比默认 `VideoCapture(...)` 更稳
+
+如果后续你的图传不是 RTP/H264，而是别的封装格式，需要相应调整 pipeline 中间部分，但 `appsink` 结尾的总体结构通常不变。
 
 ## 14. 当前限制
 

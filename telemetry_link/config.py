@@ -9,13 +9,24 @@ import yaml
 
 
 @dataclass(slots=True)
-class TelemetryConfig:
+class EndpointConfig:
+    name: str
     connection_type: str
     serial_port: str
     baudrate: int
     udp_mode: str
     udp_host: str
     udp_port: int
+    tcp_host: str
+    tcp_port: int
+
+
+@dataclass(slots=True)
+class TelemetryConfig:
+    data_source: str
+    active_source: str
+    sitl: EndpointConfig
+    real: EndpointConfig
     control_send_rate_hz: float
     action_cmd_retries: int
     action_retry_interval_sec: float
@@ -26,6 +37,10 @@ class TelemetryConfig:
     sender_idle_sleep_sec: float
     request_message_intervals: bool
     message_interval_hz: dict[str, float]
+    gimbal_mount_mode: int
+    state_udp_enabled: bool
+    state_udp_ip: str
+    state_udp_port: int
     log_level: str
 
 
@@ -43,12 +58,27 @@ def _to_bool(value: str | bool) -> bool:
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Standalone MAVLink telemetry link service")
     parser.add_argument("--config", default=str(Path(__file__).with_name("config.yaml")))
-    parser.add_argument("--connection-type", choices=["serial", "udp"])
-    parser.add_argument("--serial-port")
-    parser.add_argument("--baudrate", type=int)
-    parser.add_argument("--udp-mode", choices=["udpin", "udpout"])
-    parser.add_argument("--udp-host")
-    parser.add_argument("--udp-port", type=int)
+    parser.add_argument("--data-source", choices=["real", "sitl", "dual"])
+    parser.add_argument("--active-source", choices=["real", "sitl"])
+
+    parser.add_argument("--real-connection-type", choices=["serial", "udp", "tcp"])
+    parser.add_argument("--real-serial-port")
+    parser.add_argument("--real-baudrate", type=int)
+    parser.add_argument("--real-udp-mode", choices=["udpin", "udpout"])
+    parser.add_argument("--real-udp-host")
+    parser.add_argument("--real-udp-port", type=int)
+    parser.add_argument("--real-tcp-host")
+    parser.add_argument("--real-tcp-port", type=int)
+
+    parser.add_argument("--sitl-connection-type", choices=["serial", "udp", "tcp"])
+    parser.add_argument("--sitl-serial-port")
+    parser.add_argument("--sitl-baudrate", type=int)
+    parser.add_argument("--sitl-udp-mode", choices=["udpin", "udpout"])
+    parser.add_argument("--sitl-udp-host")
+    parser.add_argument("--sitl-udp-port", type=int)
+    parser.add_argument("--sitl-tcp-host")
+    parser.add_argument("--sitl-tcp-port", type=int)
+
     parser.add_argument("--control-send-rate-hz", type=float)
     parser.add_argument("--action-cmd-retries", type=int)
     parser.add_argument("--action-retry-interval-sec", type=float)
@@ -58,6 +88,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--receiver-idle-sleep-sec", type=float)
     parser.add_argument("--sender-idle-sleep-sec", type=float)
     parser.add_argument("--request-message-intervals", type=_to_bool)
+    parser.add_argument("--gimbal-mount-mode", type=int)
+    parser.add_argument("--state-udp-enabled", type=_to_bool)
+    parser.add_argument("--state-udp-ip")
+    parser.add_argument("--state-udp-port", type=int)
     parser.add_argument("--log-level")
     return parser
 
@@ -70,24 +104,45 @@ def _load_yaml(path: str) -> dict[str, Any]:
     return data
 
 
+def _merge_cli_overrides(merged: dict[str, Any], args: argparse.Namespace) -> None:
+    for key, value in vars(args).items():
+        if key == "config" or value is None:
+            continue
+        if key.startswith("real_"):
+            merged.setdefault("real", {})
+            merged["real"][key.removeprefix("real_")] = value
+        elif key.startswith("sitl_"):
+            merged.setdefault("sitl", {})
+            merged["sitl"][key.removeprefix("sitl_")] = value
+        else:
+            merged[key.replace("-", "_")] = value
+
+
+def _build_endpoint(name: str, data: dict[str, Any]) -> EndpointConfig:
+    return EndpointConfig(
+        name=name,
+        connection_type=str(data["connection_type"]),
+        serial_port=str(data.get("serial_port", "/dev/ttyUSB0")),
+        baudrate=int(data.get("baudrate", 115200)),
+        udp_mode=str(data.get("udp_mode", "udpin")),
+        udp_host=str(data.get("udp_host", "0.0.0.0")),
+        udp_port=int(data.get("udp_port", 14550)),
+        tcp_host=str(data.get("tcp_host", "127.0.0.1")),
+        tcp_port=int(data.get("tcp_port", 5760)),
+    )
+
+
 def load_config() -> TelemetryConfig:
     parser = build_arg_parser()
     args = parser.parse_args()
     merged = _load_yaml(args.config)
-
-    for key, value in vars(args).items():
-        if key == "config":
-            continue
-        if value is not None:
-            merged[key.replace("-", "_")] = value
+    _merge_cli_overrides(merged, args)
 
     return TelemetryConfig(
-        connection_type=str(merged["connection_type"]),
-        serial_port=str(merged["serial_port"]),
-        baudrate=int(merged["baudrate"]),
-        udp_mode=str(merged["udp_mode"]),
-        udp_host=str(merged["udp_host"]),
-        udp_port=int(merged["udp_port"]),
+        data_source=str(merged["data_source"]),
+        active_source=str(merged["active_source"]),
+        sitl=_build_endpoint("sitl", dict(merged["sitl"])),
+        real=_build_endpoint("real", dict(merged["real"])),
         control_send_rate_hz=float(merged["control_send_rate_hz"]),
         action_cmd_retries=int(merged["action_cmd_retries"]),
         action_retry_interval_sec=float(merged["action_retry_interval_sec"]),
@@ -98,5 +153,9 @@ def load_config() -> TelemetryConfig:
         sender_idle_sleep_sec=float(merged["sender_idle_sleep_sec"]),
         request_message_intervals=bool(merged["request_message_intervals"]),
         message_interval_hz={str(k): float(v) for k, v in dict(merged.get("message_interval_hz", {})).items()},
+        gimbal_mount_mode=int(merged.get("gimbal_mount_mode", 2)),
+        state_udp_enabled=bool(merged.get("state_udp_enabled", True)),
+        state_udp_ip=str(merged.get("state_udp_ip", "127.0.0.1")),
+        state_udp_port=int(merged.get("state_udp_port", 5010)),
         log_level=str(merged["log_level"]),
     )

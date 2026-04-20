@@ -16,6 +16,7 @@ class ActionType(str, Enum):
     DISARM = "disarm"
     SET_MODE = "set_mode"
     REQUEST_MESSAGE_INTERVAL = "request_message_interval"
+    GIMBAL_ANGLE = "gimbal_angle"
 
 
 @dataclass(slots=True)
@@ -34,7 +35,16 @@ class DroneState:
     velocity_valid: bool = False
     altitude_valid: bool = False
     battery_valid: bool = False
+    global_position_valid: bool = False
+    relative_alt_valid: bool = False
+    local_position_valid: bool = False
+    last_attitude_time: float = 0.0
     last_velocity_time: float = 0.0
+    last_altitude_time: float = 0.0
+    last_battery_time: float = 0.0
+    last_global_position_time: float = 0.0
+    last_relative_alt_time: float = 0.0
+    last_local_position_time: float = 0.0
     roll: float = 0.0
     pitch: float = 0.0
     yaw: float = 0.0
@@ -50,9 +60,6 @@ class DroneState:
     relative_altitude: float = 0.0
     lat: float = 0.0
     lon: float = 0.0
-    global_position_valid: bool = False
-    local_position_valid: bool = False
-    relative_alt_valid: bool = False
     battery_voltage: float = 0.0
     battery_remaining: int = -1
     gps_fix_type: int = 0
@@ -60,6 +67,18 @@ class DroneState:
     gps_eph: float = -1.0
     gps_epv: float = -1.0
     last_message_type: str = ""
+
+
+@dataclass(slots=True)
+class GimbalState:
+    timestamp: float = 0.0
+    gimbal_valid: bool = False
+    yaw: float = 0.0
+    pitch: float = 0.0
+    roll: float = 0.0
+    source_msg_type: str = ""
+    last_update_time: float = 0.0
+    raw_quaternion: tuple[float, float, float, float] | None = None
 
 
 @dataclass(slots=True)

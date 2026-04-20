@@ -1,8 +1,11 @@
 # YOLO 模型权重路径，支持官方模型或自定义训练得到的 .pt 文件
 model_path: "./yolo11n.pt"
 
-# 视频输入源，支持 /dev/video0、/dev/video1、数字索引、RTSP、本地视频文件
-source: "/dev/video2"
+# 视频输入源：
+# 1. 如果是本地视频设备，请填写 /dev/videoX
+# 2. 如果是 UDP H264/RTP 输入，请直接填写端口号，例如 "5600"
+# 3. 仍兼容 RTSP、本地视频文件，以及完整 GStreamer pipeline
+source: /dev/video2
 
 # YOLO 推理尺寸，常用 640；数值越大通常越准，但推理耗时也会增加
 img_size: 640
