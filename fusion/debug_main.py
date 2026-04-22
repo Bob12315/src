@@ -240,11 +240,12 @@ def main() -> int:
             )
             fused = fusion_manager.update(perception, drone, gimbal)
             logger.info(
-                "active_source=%s telemetry_fresh=%s target_valid=%s target_locked=%s track_id=%s tracking_state=%s\n"
-                "cam_err=(%.3f,%.3f) body_err=(%.3f,%.3f)\n"
-                "gimbal_valid=%s gimbal_yaw=%.3f gimbal_pitch=%.3f\n"
-                "drone_rpy=(%.3f,%.3f,%.3f) yaw_rate=%.3f vel=(%.3f,%.3f,%.3f) alt=%.3f\n"
-                "control_allowed=%s control_enabled=%s state_valid=%s fusion_valid=%s\n"
+                "active_source=%s telemetry_fresh=%s\n"
+                "target: valid=%s locked=%s track_id=%s tracking_state=%s bbox_w=%s bbox_h=%s bbox_area=%s\n"
+                "errors: cam=(%.3f,%.3f) body=(%.3f,%.3f)\n"
+                "gimbal: valid=%s yaw=%.3f pitch=%.3f\n"
+                "drone: rpy=(%.3f,%.3f,%.3f) yaw_rate=%.3f vel=(%.3f,%.3f,%.3f) alt=%.3f\n"
+                "validity: vision_valid=%s drone_valid=%s control_allowed=%s control_enabled=%s state_valid=%s fusion_valid=%s\n"
                 "src_ts perception=%.3f drone=%.3f gimbal=%.3f",
                 active_source,
                 telemetry_fresh,
@@ -252,6 +253,9 @@ def main() -> int:
                 fused.target_locked,
                 fused.track_id,
                 fused.tracking_state,
+                fused.bbox_w,
+                fused.bbox_h,
+                fused.bbox_area,
                 fused.ex_cam,
                 fused.ey_cam,
                 fused.ex_body,
@@ -267,6 +271,8 @@ def main() -> int:
                 fused.vy,
                 fused.vz,
                 fused.altitude,
+                fused.vision_valid,
+                fused.drone_valid,
                 fused.control_allowed,
                 fused.control_enabled,
                 fused.state_valid,

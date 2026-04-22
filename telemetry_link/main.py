@@ -6,6 +6,8 @@ import sys
 import threading
 import time
 
+from pymavlink import mavutil
+
 from config import load_config
 from link_manager import LinkManager
 from state_publisher import StatePublisher
@@ -47,6 +49,66 @@ def main() -> int:
             elif command == "disarm":
                 manager.disarm()
                 logger.info("disarm command queued")
+            elif command.startswith("takeoff "):
+                parts = command.split()
+                if len(parts) != 2:
+                    logger.warning("takeoff command format: takeoff <altitude_m>")
+                    continue
+                try:
+                    altitude_m = float(parts[1])
+                except ValueError:
+                    logger.warning("takeoff command parse failed: %s", command)
+                    continue
+                manager.takeoff(altitude_m)
+                logger.info("takeoff command queued altitude_m=%.2f", altitude_m)
+            elif command == "land":
+                manager.land()
+                logger.info("land command queued")
+            elif command.startswith("body_vel "):
+                parts = command.split()
+                if len(parts) != 4:
+                    logger.warning("body_vel command format: body_vel <forward_mps> <right_mps> <down_mps>")
+                    continue
+                try:
+                    forward = float(parts[1])
+                    right = float(parts[2])
+                    down = float(parts[3])
+                except ValueError:
+                    logger.warning("body_vel command parse failed: %s", command)
+                    continue
+                manager.send_velocity_command(
+                    vx=forward,
+                    vy=right,
+                    vz=down,
+                    frame=mavutil.mavlink.MAV_FRAME_BODY_NED,
+                )
+                logger.info(
+                    "body_vel command queued forward=%.2f right=%.2f down=%.2f frame=BODY_NED",
+                    forward,
+                    right,
+                    down,
+                )
+            elif command.startswith("yaw_rate "):
+                parts = command.split()
+                if len(parts) != 2:
+                    logger.warning("yaw_rate command format: yaw_rate <rad_per_sec>")
+                    continue
+                try:
+                    yaw_rate = float(parts[1])
+                except ValueError:
+                    logger.warning("yaw_rate command parse failed: %s", command)
+                    continue
+                manager.send_yaw_rate_command(
+                    yaw_rate=yaw_rate,
+                    frame=mavutil.mavlink.MAV_FRAME_BODY_NED,
+                )
+                logger.info(
+                    "yaw_rate command queued yaw_rate=%.2f frame=BODY_NED",
+                    yaw_rate,
+                )
+            elif command == "stop":
+                manager.stop_control(frame=mavutil.mavlink.MAV_FRAME_BODY_NED)
+                logger.info("stop command queued frame=BODY_NED")
             elif command.startswith("gimbal "):
                 parts = command.split()
                 if len(parts) not in {3, 4}:

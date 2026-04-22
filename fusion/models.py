@@ -39,15 +39,21 @@ class FusedState:
     tracking_state: str = "lost"
     ex_cam: float = 0.0
     ey_cam: float = 0.0
+    bbox_w: float | None = None
+    bbox_h: float | None = None
+    bbox_area: float | None = None
     gimbal_valid: bool = False
     gimbal_yaw: float = 0.0
     gimbal_pitch: float = 0.0
     ex_body: float = 0.0
     ey_body: float = 0.0
+    vision_valid: bool = False
+    drone_valid: bool = False
     yaw: float = 0.0
     roll: float = 0.0
     pitch: float = 0.0
     yaw_rate: float = 0.0
+    # vx/vy/vz are body-frame velocities.
     vx: float = 0.0
     vy: float = 0.0
     vz: float = 0.0

@@ -4,7 +4,7 @@ import heapq
 import threading
 import time
 
-from models import ActionCommand, ControlCommand, QueuedAction
+from models import ActionCommand, ControlCommand, GimbalRateCommand, QueuedAction
 
 
 class CommandQueue:
@@ -19,6 +19,7 @@ class CommandQueue:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._latest_control: ControlCommand | None = None
+        self._latest_gimbal_rate: GimbalRateCommand | None = None
         self._action_heap: list[QueuedAction] = []
         self._sequence = 0
 
@@ -33,6 +34,18 @@ class CommandQueue:
     def clear_control(self) -> None:
         with self._lock:
             self._latest_control = None
+
+    def put_gimbal_rate(self, command: GimbalRateCommand) -> None:
+        with self._lock:
+            self._latest_gimbal_rate = command
+
+    def peek_gimbal_rate(self) -> GimbalRateCommand | None:
+        with self._lock:
+            return self._latest_gimbal_rate
+
+    def clear_gimbal_rate(self) -> None:
+        with self._lock:
+            self._latest_gimbal_rate = None
 
     def put_action(self, command: ActionCommand) -> None:
         with self._lock:

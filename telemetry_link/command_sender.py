@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
 
@@ -10,7 +11,7 @@ from pymavlink.dialects.v20 import ardupilotmega
 from command_queue import CommandQueue
 from config import TelemetryConfig
 from mavlink_client import MavlinkClient
-from models import ActionCommand, ActionType, ControlCommand, ControlType
+from models import ActionCommand, ActionType, ControlCommand, ControlType, GimbalRateCommand
 from rate_controller import RateController
 from state_cache import StateCache
 
@@ -32,6 +33,7 @@ class CommandSender(threading.Thread):
         self.stop_event = stop_event
         self.logger = logging.getLogger(self.__class__.__name__)
         self.control_rate = RateController(cfg.control_send_rate_hz)
+        self._last_gimbal_rate_send_at: float | None = None
 
     def run(self) -> None:
         warned_disconnected = False
@@ -42,6 +44,8 @@ class CommandSender(threading.Thread):
             if not link.connected:
                 if self.command_queue.peek_control() is not None:
                     self.command_queue.clear_control()
+                if self.command_queue.peek_gimbal_rate() is not None:
+                    self.command_queue.clear_gimbal_rate()
                 if not warned_disconnected:
                     self.logger.warning("Stop sending control commands because link is disconnected")
                     warned_disconnected = True
@@ -58,10 +62,15 @@ class CommandSender(threading.Thread):
                 did_work = True
                 self._send_action(action)
 
+            ready_for_control = self.control_rate.ready()
             control = self.command_queue.peek_control()
-            if control is not None and self.control_rate.ready():
+            if control is not None and ready_for_control:
                 did_work = True
                 self._send_control(control)
+            gimbal_rate = self.command_queue.peek_gimbal_rate()
+            if gimbal_rate is not None and ready_for_control:
+                did_work = True
+                self._send_gimbal_rate(gimbal_rate)
 
             if not did_work:
                 time.sleep(self.cfg.sender_idle_sleep_sec)
@@ -97,6 +106,25 @@ class CommandSender(threading.Thread):
                     lambda master: self._command_long(
                         master,
                         mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+                        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    )
+                )
+            elif command.action_type == ActionType.TAKEOFF:
+                altitude_m = float(command.params["altitude_m"])
+                self.logger.info("sending action command=takeoff altitude_m=%.2f", altitude_m)
+                self.client.send_raw_message(
+                    lambda master: self._command_long(
+                        master,
+                        mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
+                        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, altitude_m],
+                    )
+                )
+            elif command.action_type == ActionType.LAND:
+                self.logger.info("sending action command=land")
+                self.client.send_raw_message(
+                    lambda master: self._command_long(
+                        master,
+                        mavutil.mavlink.MAV_CMD_NAV_LAND,
                         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                     )
                 )
@@ -147,6 +175,13 @@ class CommandSender(threading.Thread):
                 command.retries_left -= 1
                 time.sleep(command.retry_interval_sec)
                 self.command_queue.requeue_action(command)
+
+    def _send_gimbal_rate(self, command: GimbalRateCommand) -> None:
+        try:
+            self.client.send_raw_message(lambda master: self._send_gimbal_rate_as_angle_step(master, command))
+            self.state_cache.update_link(last_tx_time=time.time())
+        except Exception as exc:
+            self.logger.warning("failed to send gimbal rate command: %s", exc)
 
     def _send_velocity(self, master, command: ControlCommand) -> None:
         type_mask = (
@@ -208,6 +243,32 @@ class CommandSender(threading.Thread):
             0.0,
             0.0,
             command.yaw_rate,
+        )
+
+    def _send_gimbal_rate_as_angle_step(self, master, command: GimbalRateCommand) -> None:
+        now = time.time()
+        dt = 1.0 / self.cfg.control_send_rate_hz if self.cfg.control_send_rate_hz > 0.0 else 0.0
+        if self._last_gimbal_rate_send_at is not None:
+            dt = max(0.0, now - self._last_gimbal_rate_send_at)
+        self._last_gimbal_rate_send_at = now
+        if dt <= 0.0:
+            dt = self.cfg.sender_idle_sleep_sec
+
+        gimbal = self.state_cache.get_latest_gimbal_state_validated(now)
+        current_yaw_deg = float(gimbal.yaw) if bool(gimbal.gimbal_valid) and math.isfinite(float(gimbal.yaw)) else 0.0
+        current_pitch_deg = float(gimbal.pitch) if bool(gimbal.gimbal_valid) and math.isfinite(float(gimbal.pitch)) else 0.0
+
+        yaw_rate_deg_s = math.degrees(float(command.yaw_rate))
+        pitch_rate_deg_s = math.degrees(float(command.pitch_rate))
+        target_yaw_deg = current_yaw_deg + yaw_rate_deg_s * dt
+        target_pitch_deg = current_pitch_deg + pitch_rate_deg_s * dt
+
+        self._send_gimbal_angle(
+            master,
+            pitch=target_pitch_deg,
+            yaw=target_yaw_deg,
+            roll=0.0,
+            mount_mode=self.cfg.gimbal_mount_mode,
         )
 
     def _send_set_mode(self, master, mode_name: str) -> None:

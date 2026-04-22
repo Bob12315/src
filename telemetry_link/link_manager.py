@@ -9,7 +9,7 @@ from command_queue import CommandQueue
 from command_sender import CommandSender
 from config import EndpointConfig, TelemetryConfig
 from mavlink_client import MavlinkClient
-from models import ActionCommand, ActionType, ControlCommand, ControlType, DroneState, GimbalState, LinkStatus
+from models import ActionCommand, ActionType, ControlCommand, ControlType, DroneState, GimbalRateCommand, GimbalState, LinkStatus
 from state_cache import StateCache
 from telemetry_receiver import TelemetryReceiver
 
@@ -108,6 +108,7 @@ class SourceRuntime:
                 self.sender.join(timeout=1.0)
                 self.sender = None
             self.command_queue.clear_control()
+            self.command_queue.clear_gimbal_rate()
             if close_client:
                 self.client.close()
 
@@ -272,6 +273,29 @@ class LinkManager:
             )
         )
 
+    def takeoff(self, altitude_m: float, priority: int = 2) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.TAKEOFF,
+                params={"altitude_m": float(altitude_m)},
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def land(self, priority: int = 2) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.LAND,
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
     def send_gimbal_angle(
         self,
         pitch: float,
@@ -292,6 +316,15 @@ class LinkManager:
                 priority=priority,
                 retries_left=self.cfg.action_cmd_retries,
                 retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def send_gimbal_rate(self, yaw_rate: float, pitch_rate: float) -> None:
+        self._active_runtime().command_queue.put_gimbal_rate(
+            GimbalRateCommand(
+                yaw_rate=float(yaw_rate),
+                pitch_rate=float(pitch_rate),
                 created_at=time.time(),
             )
         )

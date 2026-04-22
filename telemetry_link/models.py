@@ -15,6 +15,8 @@ class ActionType(str, Enum):
     ARM = "arm"
     DISARM = "disarm"
     SET_MODE = "set_mode"
+    TAKEOFF = "takeoff"
+    LAND = "land"
     REQUEST_MESSAGE_INTERVAL = "request_message_interval"
     GIMBAL_ANGLE = "gimbal_angle"
 
@@ -114,6 +116,13 @@ class ActionCommand:
     priority: int = 10
     retries_left: int = 0
     retry_interval_sec: float = 0.5
+    created_at: float = 0.0
+
+
+@dataclass(slots=True)
+class GimbalRateCommand:
+    yaw_rate: float = 0.0
+    pitch_rate: float = 0.0
     created_at: float = 0.0
 
 

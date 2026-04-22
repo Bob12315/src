@@ -85,6 +85,14 @@ def build_fused_state(
 
     target_locked = bool(perception_target.target_valid and perception_target.tracking_state == "locked")
     state_valid = compute_state_valid(drone_state)
+    bbox_w = getattr(perception_target, "bbox_w", None)
+    if bbox_w is None:
+        bbox_w = getattr(perception_target, "w", None)
+    bbox_h = getattr(perception_target, "bbox_h", None)
+    if bbox_h is None:
+        bbox_h = getattr(perception_target, "h", None)
+    bbox_area = bbox_w * bbox_h if bbox_w is not None and bbox_h is not None else None
+    drone_valid = bool(getattr(drone_state, "valid", state_valid))
     control_enabled = bool(
         perception_target.target_valid
         and perception_target.tracking_state == "locked"
@@ -109,11 +117,16 @@ def build_fused_state(
         tracking_state=perception_target.tracking_state,
         ex_cam=perception_target.ex,
         ey_cam=perception_target.ey,
+        ex_body=ex_body,
+        ey_body=ey_body,
+        bbox_w=bbox_w,
+        bbox_h=bbox_h,
+        bbox_area=bbox_area,
         gimbal_valid=gimbal_state.gimbal_valid,
         gimbal_yaw=gimbal_state.yaw,
         gimbal_pitch=gimbal_state.pitch,
-        ex_body=ex_body,
-        ey_body=ey_body,
+        vision_valid=perception_target.target_valid,
+        drone_valid=drone_valid,
         yaw=drone_state.yaw,
         roll=drone_state.roll,
         pitch=drone_state.pitch,

@@ -105,6 +105,30 @@ fused_state = manager.update(perception_target, drone_state, gimbal_state)
 
 控制层后续应只依赖 `FusedState`，而不是自己再去拼 `YOLO + telemetry_link`。
 
+当前工程里，`FusedState` 的下一跳已经明确为控制层输入适配器：
+
+```python
+from control.control_input import ControlInputAdapter
+
+adapter = ControlInputAdapter()
+control_input = adapter.adapt(fused_state)
+```
+
+这里的 `ControlInputAdapter` 负责：
+
+- `dt` 计算
+- source age 计算
+- 跟踪连续性判断
+- 轻量一阶低通滤波
+- 将 `FusedState` 映射为控制层统一输入 `ControlInput`
+
+它不是控制器，不负责：
+
+- 状态机
+- PID
+- 控制输出计算
+- fail-safe 策略
+
 ## 5. 终端 Debug
 
 当前仓库新增了独立的终端 debug 入口：

@@ -479,6 +479,12 @@ telemetry_link 连接的应当是：
 ```text
 switch_source real
 switch_source sitl
+mode GUIDED
+mode STABILIZE
+arm
+disarm
+gimbal -10 15
+gimbal -10 15 0
 ```
 
 例如程序运行中直接在终端输入：
@@ -493,7 +499,241 @@ switch_source sitl
 - 不做数据融合
 - 只切换当前对外暴露状态与命令发送目标
 
-### 10.1 云台命令发送
+### 10.1 终端发送命令
+
+当前版本支持直接在 `telemetry_link` 运行终端里输入命令。
+
+支持的命令如下：
+
+- `switch_source real`
+- `switch_source sitl`
+- `mode <MODE_NAME>`
+- `arm`
+- `disarm`
+- `takeoff <altitude_m>`
+- `land`
+- `body_vel <forward_mps> <right_mps> <down_mps>`
+- `yaw_rate <rad_per_sec>`
+- `stop`
+- `gimbal <pitch_deg> <yaw_deg> [roll_deg]`
+
+完整示例如下：
+
+```text
+switch_source real
+switch_source sitl
+
+mode GUIDED
+mode STABILIZE
+mode LOITER
+mode ALT_HOLD
+mode LAND
+mode RTL
+
+arm
+disarm
+takeoff 3
+takeoff 5
+land
+
+body_vel 1 0 0
+body_vel -1 0 0
+body_vel 0 -1 0
+body_vel 0 1 0
+body_vel 0 0 -0.5
+body_vel 0 0 0.5
+yaw_rate 0.3
+yaw_rate -0.3
+stop
+
+gimbal 0 0
+gimbal -10 15
+gimbal -10 15 0
+gimbal 20 0 0
+gimbal 0 30 0
+gimbal 40 40 40
+gimbal -20 -30 0
+```
+
+说明：
+
+- `switch_source real`：切换当前 active source 到真机链路
+- `switch_source sitl`：切换当前 active source 到 SITL 链路
+- `mode GUIDED` 会调用 `LinkManager.set_mode("GUIDED")`
+- `mode STABILIZE / LOITER / ALT_HOLD / LAND / RTL` 的行为与飞控当前模式映射一致
+- `arm` / `disarm` 会走一次性动作命令队列
+- `takeoff <altitude_m>` 会发送 `MAV_CMD_NAV_TAKEOFF`
+- `land` 会发送 `MAV_CMD_NAV_LAND`
+- `body_vel` 使用机体系 `BODY_NED` 发送速度命令
+- `yaw_rate` 使用机体系 `BODY_NED` 发送偏航角速度命令
+- `stop` 会发送全零速度和全零偏航角速度
+- `gimbal` 命令单位为角度 `deg`
+- `gimbal` 的格式是 `pitch yaw [roll]`
+- 如果不填 `roll`，默认按 `0.0`
+
+按命令分类举例：
+
+`switch_source` 示例：
+
+```text
+switch_source real
+switch_source sitl
+```
+
+`mode` 示例：
+
+```text
+mode GUIDED
+mode STABILIZE
+mode LOITER
+mode ALT_HOLD
+mode LAND
+mode RTL
+```
+
+`arm / disarm` 示例：
+
+```text
+arm
+disarm
+```
+
+`takeoff / land` 示例：
+
+```text
+takeoff 3
+takeoff 5
+land
+```
+
+这些命令可理解为：
+
+- `takeoff 3`：起飞到 3 米
+- `takeoff 5`：起飞到 5 米
+- `land`：执行降落
+
+`body_vel / yaw_rate / stop` 示例：
+
+```text
+body_vel 1 0 0
+body_vel -1 0 0
+body_vel 0 -1 0
+body_vel 0 1 0
+body_vel 0 0 -0.5
+body_vel 0 0 0.5
+yaw_rate 0.3
+yaw_rate -0.3
+stop
+```
+
+按“无人机前后左右上下”理解的运动示例：
+
+```text
+body_vel 1 0 0
+body_vel -1 0 0
+body_vel 0 -1 0
+body_vel 0 1 0
+body_vel 0 0 -0.5
+body_vel 0 0 0.5
+stop
+```
+
+这些命令可理解为：
+
+- `body_vel 1 0 0`：向前飞
+- `body_vel -1 0 0`：向后飞
+- `body_vel 0 -1 0`：向左飞
+- `body_vel 0 1 0`：向右飞
+- `body_vel 0 0 -0.5`：向上飞
+- `body_vel 0 0 0.5`：向下飞
+- `stop`：停住
+
+方向约定：
+
+- `forward_mps > 0`：前进
+- `forward_mps < 0`：后退
+- `right_mps > 0`：向右
+- `right_mps < 0`：向左
+- `down_mps > 0`：向下
+- `down_mps < 0`：向上
+
+偏航控制示例：
+
+```text
+yaw_rate 0.3
+yaw_rate -0.3
+stop
+```
+
+可理解为：
+
+- `yaw_rate 0.3`：持续向右转
+- `yaw_rate -0.3`：持续向左转
+- `stop`：停止转动
+
+`gimbal` 示例：
+
+```text
+gimbal 0 0
+gimbal -10 15
+gimbal -10 15 0
+gimbal 20 0 0
+gimbal 0 30 0
+gimbal 40 40 40
+gimbal -20 -30 0
+```
+
+各个 `gimbal` 示例含义：
+
+- `gimbal 0 0`：将 pitch/yaw 目标置到 0 度，roll 默认 0
+- `gimbal -10 15`：pitch=-10 度，yaw=15 度，roll 默认 0
+- `gimbal -10 15 0`：显式指定 roll=0
+- `gimbal 20 0 0`：只改 pitch
+- `gimbal 0 38 0`：只改 yaw
+- `gimbal 40 40 40`：pitch/yaw/roll 全部给 40 度
+- `gimbal -20 -30 30`：给负角度目标
+
+按“前后左右”理解的云台示例：
+
+```text
+gimbal 0 0
+gimbal -10 0
+gimbal 10 0
+gimbal 0 -10
+gimbal 0 10
+gimbal -10 -10
+gimbal -10 10
+gimbal 10 -10
+gimbal 10 10
+```
+
+这些命令可理解为：
+
+- `gimbal 0 0`：回中
+- `gimbal -10 0`：向前
+- `gimbal 10 0`：向后
+- `gimbal 0 -10`：向左
+- `gimbal 0 10`：向右
+- `gimbal -10 -10`：左前
+- `gimbal -10 10`：右前
+- `gimbal 10 -10`：左后
+- `gimbal 10 10`：右后
+
+角度方向约定：
+
+- `pitch < 0`：向前
+- `pitch > 0`：向后
+- `yaw < 0`：向左
+- `yaw > 0`：向右
+
+调试时建议观察两类日志：
+
+- 入队日志，例如 `mode command queued mode=GUIDED`
+- 发送日志，例如 `sending action command=set_mode mode=GUIDED`
+
+如果只看到入队日志，没有看到发送日志，通常说明链路还没连上或旧进程还没重启。
+
+### 10.2 云台命令发送
 
 当前版本已支持通过 `LinkManager` 发送云台角度命令：
 
