@@ -56,6 +56,14 @@ request_message_intervals: true
 # 云台控制使用的 mount mode，默认 2 = MAVLink Targeting
 gimbal_mount_mode: 2
 
+# 云台 yaw 角度限制；当前设为大范围，等效关闭发送层限位
+gimbal_yaw_min_deg: -180.0
+gimbal_yaw_max_deg: 180.0
+
+# 云台 pitch 角度限制；当前设为大范围，等效关闭发送层限位
+gimbal_pitch_min_deg: -180.0
+gimbal_pitch_max_deg: 180.0
+
 # 使用 MAV_CMD_SET_MESSAGE_INTERVAL 请求消息频率时的默认频率
 message_interval_hz:
   HEARTBEAT: 1

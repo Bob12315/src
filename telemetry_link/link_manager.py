@@ -320,11 +320,19 @@ class LinkManager:
             )
         )
 
-    def send_gimbal_rate(self, yaw_rate: float, pitch_rate: float) -> None:
+    def send_gimbal_rate(
+        self,
+        yaw_rate: float,
+        pitch_rate: float,
+        yaw_lock: bool = False,
+        gimbal_device_id: int = 0,
+    ) -> None:
         self._active_runtime().command_queue.put_gimbal_rate(
             GimbalRateCommand(
                 yaw_rate=float(yaw_rate),
                 pitch_rate=float(pitch_rate),
+                yaw_lock=bool(yaw_lock),
+                gimbal_device_id=int(gimbal_device_id),
                 created_at=time.time(),
             )
         )

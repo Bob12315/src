@@ -33,7 +33,16 @@ class CommandSender(threading.Thread):
         self.stop_event = stop_event
         self.logger = logging.getLogger(self.__class__.__name__)
         self.control_rate = RateController(cfg.control_send_rate_hz)
-        self._last_gimbal_rate_send_at: float | None = None
+
+    def _clamp_gimbal_yaw_deg(self, yaw_deg: float) -> float:
+        lower = min(float(self.cfg.gimbal_yaw_min_deg), float(self.cfg.gimbal_yaw_max_deg))
+        upper = max(float(self.cfg.gimbal_yaw_min_deg), float(self.cfg.gimbal_yaw_max_deg))
+        return max(lower, min(upper, float(yaw_deg)))
+
+    def _clamp_gimbal_pitch_deg(self, pitch_deg: float) -> float:
+        lower = min(float(self.cfg.gimbal_pitch_min_deg), float(self.cfg.gimbal_pitch_max_deg))
+        upper = max(float(self.cfg.gimbal_pitch_min_deg), float(self.cfg.gimbal_pitch_max_deg))
+        return max(lower, min(upper, float(pitch_deg)))
 
     def run(self) -> None:
         warned_disconnected = False
@@ -178,7 +187,24 @@ class CommandSender(threading.Thread):
 
     def _send_gimbal_rate(self, command: GimbalRateCommand) -> None:
         try:
-            self.client.send_raw_message(lambda master: self._send_gimbal_rate_as_angle_step(master, command))
+            yaw_rate_deg_s = math.degrees(float(command.yaw_rate))
+            pitch_rate_deg_s = math.degrees(float(command.pitch_rate))
+            self.logger.debug(
+                "sending gimbal rate command pitch_rate=%.2f deg/s yaw_rate=%.2f deg/s yaw_lock=%s gimbal_device_id=%s",
+                pitch_rate_deg_s,
+                yaw_rate_deg_s,
+                bool(command.yaw_lock),
+                int(command.gimbal_device_id),
+            )
+            self.client.send_raw_message(
+                lambda master: self._send_gimbal_manager_pitchyaw_rate(
+                    master,
+                    pitch_rate_deg_s=pitch_rate_deg_s,
+                    yaw_rate_deg_s=yaw_rate_deg_s,
+                    yaw_lock=bool(command.yaw_lock),
+                    gimbal_device_id=int(command.gimbal_device_id),
+                )
+            )
             self.state_cache.update_link(last_tx_time=time.time())
         except Exception as exc:
             self.logger.warning("failed to send gimbal rate command: %s", exc)
@@ -245,30 +271,28 @@ class CommandSender(threading.Thread):
             command.yaw_rate,
         )
 
-    def _send_gimbal_rate_as_angle_step(self, master, command: GimbalRateCommand) -> None:
-        now = time.time()
-        dt = 1.0 / self.cfg.control_send_rate_hz if self.cfg.control_send_rate_hz > 0.0 else 0.0
-        if self._last_gimbal_rate_send_at is not None:
-            dt = max(0.0, now - self._last_gimbal_rate_send_at)
-        self._last_gimbal_rate_send_at = now
-        if dt <= 0.0:
-            dt = self.cfg.sender_idle_sleep_sec
-
-        gimbal = self.state_cache.get_latest_gimbal_state_validated(now)
-        current_yaw_deg = float(gimbal.yaw) if bool(gimbal.gimbal_valid) and math.isfinite(float(gimbal.yaw)) else 0.0
-        current_pitch_deg = float(gimbal.pitch) if bool(gimbal.gimbal_valid) and math.isfinite(float(gimbal.pitch)) else 0.0
-
-        yaw_rate_deg_s = math.degrees(float(command.yaw_rate))
-        pitch_rate_deg_s = math.degrees(float(command.pitch_rate))
-        target_yaw_deg = current_yaw_deg + yaw_rate_deg_s * dt
-        target_pitch_deg = current_pitch_deg + pitch_rate_deg_s * dt
-
-        self._send_gimbal_angle(
-            master,
-            pitch=target_pitch_deg,
-            yaw=target_yaw_deg,
-            roll=0.0,
-            mount_mode=self.cfg.gimbal_mount_mode,
+    def _send_gimbal_manager_pitchyaw_rate(
+        self,
+        master,
+        *,
+        pitch_rate_deg_s: float,
+        yaw_rate_deg_s: float,
+        yaw_lock: bool,
+        gimbal_device_id: int,
+    ) -> None:
+        flags = mavutil.mavlink.GIMBAL_MANAGER_FLAGS_YAW_LOCK if yaw_lock else 0
+        master.mav.command_long_send(
+            master.target_system,
+            master.target_component,
+            mavutil.mavlink.MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW,
+            0,
+            float("nan"),
+            float("nan"),
+            float(pitch_rate_deg_s),
+            float(yaw_rate_deg_s),
+            float(flags),
+            0.0,
+            float(gimbal_device_id),
         )
 
     def _send_set_mode(self, master, mode_name: str) -> None:
@@ -323,6 +347,8 @@ class CommandSender(threading.Thread):
         roll: float,
         mount_mode: int,
     ) -> None:
+        yaw = self._clamp_gimbal_yaw_deg(yaw)
+        pitch = self._clamp_gimbal_pitch_deg(pitch)
         master.mav.command_long_send(
             master.target_system,
             master.target_component,

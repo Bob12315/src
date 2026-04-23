@@ -23,20 +23,6 @@
 
 ## 1. 模块定位
 
-`control_input.py` 是 stateful adapter，不是 controller。
-
-`control_mode.py` 是控制层调度/模式判定模块，不是 controller。
-
-`gimbal_controller.py` 是局部视觉伺服快环 controller，不是 mode manager，也不是 body / approach controller。
-
-`body_controller.py` 是机体横向对齐 + 航向对正 controller，不是 mode manager，也不是 gimbal / approach controller。
-
-`approach_controller.py` 是局部接近 controller，不是 mode manager，也不是 gimbal / body controller。
-
-`command_shaper.py` 是控制输出整形与统一收口层，不是 mode manager，不是 controller，也不是 MAVLink sender。
-
-`control_executor.py` 是控制层最后一层执行桥接模块，不是 mode manager，不是 controller，也不是 MAVLink sender。
-
 `control_input.py` 只做：
 
 - 输入预处理
@@ -192,7 +178,14 @@ yolo_app + telemetry_link
 -> ControlInput
 -> control.ControlModeManager
 -> ControlModeOutput
--> control.GimbalController
+-> control.GimbalController`control_executor.py` 只做：
+
+- 消费 `ShapedCommand`
+- 拆分机体命令与云台命令
+- 复用 `telemetry_link` 已有发送接口
+- 做非常薄的一层字段适配
+- 做最小必要的空值/接口可用性检查
+- 记录简单执行日志
 -> GimbalCommand
 -> control.BodyController
 -> BodyCommand

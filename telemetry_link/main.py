@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import signal
 import sys
 import threading
@@ -127,6 +128,34 @@ def main() -> int:
                     pitch,
                     yaw,
                     roll,
+                )
+            elif command.startswith("gimbal_rate "):
+                parts = command.split()
+                if len(parts) not in {3, 4}:
+                    logger.warning(
+                        "gimbal_rate command format: gimbal_rate <pitch_rate_deg_s> <yaw_rate_deg_s> [follow|lock]"
+                    )
+                    continue
+                try:
+                    pitch_rate_deg_s = float(parts[1])
+                    yaw_rate_deg_s = float(parts[2])
+                except ValueError:
+                    logger.warning("gimbal_rate command parse failed: %s", command)
+                    continue
+                yaw_mode = parts[3].strip().lower() if len(parts) == 4 else "follow"
+                if yaw_mode not in {"follow", "lock"}:
+                    logger.warning("gimbal_rate yaw mode must be follow or lock: %s", yaw_mode)
+                    continue
+                manager.send_gimbal_rate(
+                    yaw_rate=math.radians(yaw_rate_deg_s),
+                    pitch_rate=math.radians(pitch_rate_deg_s),
+                    yaw_lock=(yaw_mode == "lock"),
+                )
+                logger.info(
+                    "gimbal_rate command queued pitch_rate=%.2f deg/s yaw_rate=%.2f deg/s yaw_mode=%s",
+                    pitch_rate_deg_s,
+                    yaw_rate_deg_s,
+                    yaw_mode,
                 )
             elif command:
                 logger.warning("unknown command: %s", command)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import asdict, is_dataclass
 from typing import Any
@@ -47,8 +48,10 @@ def compute_body_error(
     gimbal_state: GimbalState,
     require_gimbal_feedback: bool,
 ) -> tuple[float, float, bool]:
+    gimbal_yaw_rad = math.radians(float(gimbal_state.yaw))
+    gimbal_pitch_rad = math.radians(float(gimbal_state.pitch))
     if gimbal_state.gimbal_valid:
-        return ex_cam + gimbal_state.yaw, ey_cam + gimbal_state.pitch, True
+        return ex_cam + gimbal_yaw_rad, ey_cam + gimbal_pitch_rad, True
     if require_gimbal_feedback:
         return ex_cam, ey_cam, False
     return ex_cam, ey_cam, True
@@ -104,6 +107,8 @@ def build_fused_state(
     if drone_state.stale:
         control_enabled = False
         fusion_valid = False
+    gimbal_yaw_rad = math.radians(float(gimbal_state.yaw))
+    gimbal_pitch_rad = math.radians(float(gimbal_state.pitch))
 
     return FusedState(
         timestamp=time.time(),
@@ -123,8 +128,8 @@ def build_fused_state(
         bbox_h=bbox_h,
         bbox_area=bbox_area,
         gimbal_valid=gimbal_state.gimbal_valid,
-        gimbal_yaw=gimbal_state.yaw,
-        gimbal_pitch=gimbal_state.pitch,
+        gimbal_yaw=gimbal_yaw_rad,
+        gimbal_pitch=gimbal_pitch_rad,
         vision_valid=perception_target.target_valid,
         drone_valid=drone_valid,
         yaw=drone_state.yaw,

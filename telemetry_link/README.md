@@ -470,6 +470,7 @@ telemetry_link 连接的应当是：
 - `arm()`
 - `disarm()`
 - `send_gimbal_angle(...)`
+- `send_gimbal_rate(...)`
 - `send_velocity_command(...)`
 - `send_yaw_rate_command(...)`
 - `stop_control()`
@@ -485,6 +486,8 @@ arm
 disarm
 gimbal -10 15
 gimbal -10 15 0
+gimbal_rate -5 10
+gimbal_rate 0 15 lock
 ```
 
 例如程序运行中直接在终端输入：
@@ -516,6 +519,7 @@ switch_source sitl
 - `yaw_rate <rad_per_sec>`
 - `stop`
 - `gimbal <pitch_deg> <yaw_deg> [roll_deg]`
+- `gimbal_rate <pitch_rate_deg_s> <yaw_rate_deg_s> [follow|lock]`
 
 完整示例如下：
 
@@ -553,6 +557,11 @@ gimbal 20 0 0
 gimbal 0 30 0
 gimbal 40 40 40
 gimbal -20 -30 0
+
+gimbal_rate -5 0
+gimbal_rate 0 8
+gimbal_rate -5 8
+gimbal_rate 0 8 lock
 ```
 
 说明：
@@ -570,6 +579,10 @@ gimbal -20 -30 0
 - `gimbal` 命令单位为角度 `deg`
 - `gimbal` 的格式是 `pitch yaw [roll]`
 - 如果不填 `roll`，默认按 `0.0`
+- `gimbal_rate` 命令单位为角速度 `deg/s`
+- `gimbal_rate` 的格式是 `pitch_rate yaw_rate [follow|lock]`
+- `gimbal_rate` 内部会转换成 `MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW`
+- 如果不填 yaw 模式，默认按 `follow`
 
 按命令分类举例：
 
@@ -726,6 +739,37 @@ gimbal 10 10
 - `yaw < 0`：向左
 - `yaw > 0`：向右
 
+`gimbal_rate` 示例：
+
+```text
+gimbal_rate -5 0
+gimbal_rate 5 0
+gimbal_rate 0 -8
+gimbal_rate 0 8
+gimbal_rate -5 8
+gimbal_rate 0 8 lock
+gimbal_rate 0 0
+```
+
+这些命令可理解为：
+
+- `gimbal_rate -5 0`：云台持续向前俯仰
+- `gimbal_rate 5 0`：云台持续向后俯仰
+- `gimbal_rate 0 -8`：云台持续向左偏航
+- `gimbal_rate 0 8`：云台持续向右偏航，采用 follow 模式
+- `gimbal_rate -5 8`：同时俯仰和偏航
+- `gimbal_rate 0 8 lock`：云台以 yaw lock 模式持续向右偏航
+- `gimbal_rate 0 0`：发送零角速度，停止连续转动
+
+角速度方向约定：
+
+- `pitch_rate < 0`：向前俯仰
+- `pitch_rate > 0`：向后俯仰
+- `yaw_rate < 0`：向左偏航
+- `yaw_rate > 0`：向右偏航
+- `follow`：yaw 相对机体，机体转动时云台 yaw 跟随
+- `lock`：yaw 相对地理系锁定，机体转动时云台 yaw 尽量保持不变
+
 调试时建议观察两类日志：
 
 - 入队日志，例如 `mode command queued mode=GUIDED`
@@ -752,6 +796,31 @@ manager.send_gimbal_angle(
 - 默认 `mount_mode=2`，即 `MAV_MOUNT_MODE_MAVLINK_TARGETING`
 - 这是“命令”，不是“反馈”
 - 当前云台实际姿态仍应以 `MOUNT_STATUS` 或 `GIMBAL_DEVICE_ATTITUDE_STATUS` 为准
+
+当前版本也支持通过 `LinkManager` 发送云台角速度命令：
+
+```python
+manager.send_gimbal_rate(
+    yaw_rate=0.20,
+    pitch_rate=-0.10,
+    yaw_lock=False,
+)
+```
+
+说明：
+
+- `send_gimbal_rate()` 的输入单位仍为 `rad/s`，便于和现有控制器输出保持一致
+- 发送时会按官方 MAVLink 定义转换为 `deg/s`
+- 底层使用 `MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW`
+- 速率控制场景下，`param1/param2` 会发送 `NaN`，只使用 `param3/param4`
+- `yaw_lock=False` 对应文档中的 body-frame / follow
+- `yaw_lock=True` 对应文档中的 earth-frame / lock
+- `gimbal_device_id` 默认使用 `0`
+
+本实现参考官方文档：
+
+- ArduPilot Dev: <https://ardupilot.org/dev/docs/mavlink-gimbal-mount.html>
+- MAVLink Common: <https://mavlink.io/en/messages/common.html#MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW>
 
 ## 11. 为什么要统一收发调度
 

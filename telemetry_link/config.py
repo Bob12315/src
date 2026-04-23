@@ -38,6 +38,10 @@ class TelemetryConfig:
     request_message_intervals: bool
     message_interval_hz: dict[str, float]
     gimbal_mount_mode: int
+    gimbal_yaw_min_deg: float
+    gimbal_yaw_max_deg: float
+    gimbal_pitch_min_deg: float
+    gimbal_pitch_max_deg: float
     state_udp_enabled: bool
     state_udp_ip: str
     state_udp_port: int
@@ -89,6 +93,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sender-idle-sleep-sec", type=float)
     parser.add_argument("--request-message-intervals", type=_to_bool)
     parser.add_argument("--gimbal-mount-mode", type=int)
+    parser.add_argument("--gimbal-yaw-min-deg", type=float)
+    parser.add_argument("--gimbal-yaw-max-deg", type=float)
+    parser.add_argument("--gimbal-pitch-min-deg", type=float)
+    parser.add_argument("--gimbal-pitch-max-deg", type=float)
     parser.add_argument("--state-udp-enabled", type=_to_bool)
     parser.add_argument("--state-udp-ip")
     parser.add_argument("--state-udp-port", type=int)
@@ -154,6 +162,10 @@ def load_config() -> TelemetryConfig:
         request_message_intervals=bool(merged["request_message_intervals"]),
         message_interval_hz={str(k): float(v) for k, v in dict(merged.get("message_interval_hz", {})).items()},
         gimbal_mount_mode=int(merged.get("gimbal_mount_mode", 2)),
+        gimbal_yaw_min_deg=float(merged.get("gimbal_yaw_min_deg", -180.0)),
+        gimbal_yaw_max_deg=float(merged.get("gimbal_yaw_max_deg", 180.0)),
+        gimbal_pitch_min_deg=float(merged.get("gimbal_pitch_min_deg", -180.0)),
+        gimbal_pitch_max_deg=float(merged.get("gimbal_pitch_max_deg", 180.0)),
         state_udp_enabled=bool(merged.get("state_udp_enabled", True)),
         state_udp_ip=str(merged.get("state_udp_ip", "127.0.0.1")),
         state_udp_port=int(merged.get("state_udp_port", 5010)),

@@ -123,6 +123,8 @@ class ActionCommand:
 class GimbalRateCommand:
     yaw_rate: float = 0.0
     pitch_rate: float = 0.0
+    yaw_lock: bool = False
+    gimbal_device_id: int = 0
     created_at: float = 0.0
 
 

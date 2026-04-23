@@ -1,0 +1,264 @@
+# control/main.py 运行时相关参数
+runtime:
+  # YOLO 主目标 UDP 接收监听 IP，通常 0.0.0.0 表示监听本机所有网卡
+  yolo_udp_ip: "0.0.0.0"
+  # YOLO 主目标 UDP 接收端口，需要和 yolo_app 的 udp_port 对上
+  yolo_udp_port: 5005
+  # 控制主循环频率，越高响应越快，但链路与 CPU 压力也更高
+  loop_hz: 20.0
+  # 多久没收到感知数据就认为 perception 超时
+  perception_timeout_sec: 1.0
+  # 终端状态日志打印频率
+  print_rate_hz: 2.0
+  # fusion 是否要求必须有云台反馈才认为融合结果可用
+  require_gimbal_feedback: true
+  # 日志级别，可选 DEBUG / INFO / WARNING / ERROR
+  log_level: INFO
+
+# control/control_input.py
+# 输入预处理、时间清洗、稳定性判断和一阶低通滤波参数
+input_adapter:
+  # 当输入时间戳不可用时使用的默认 dt
+  dt_default: 0.02
+  # dt 下限，防止除零或导数过大
+  dt_min: 0.001
+  # dt 上限，防止异常大时间间隔破坏滤波效果
+  dt_max: 0.5
+  # 目标锁定并保持多久后，才认为 target_stable=true
+  stable_hold_s: 0.3
+  # source timestamp 无效时返回的 age 值，通常保持为无穷大
+  age_invalid_value: .inf
+  # 相机坐标系横向误差 ex_cam 的低通滤波时间常数
+  ex_cam_tau_s: 0.08
+  # 相机坐标系纵向误差 ey_cam 的低通滤波时间常数
+  ey_cam_tau_s: 0.08
+  # 机体系横向误差 ex_body 的低通滤波时间常数
+  ex_body_tau_s: 0.08
+  # 机体系纵向误差 ey_body 的低通滤波时间常数
+  ey_body_tau_s: 0.08
+  # 云台 yaw 角的低通滤波时间常数
+  gimbal_yaw_tau_s: 0.10
+  # 云台 pitch 角的低通滤波时间常数
+  gimbal_pitch_tau_s: 0.10
+  # 目标尺度 target_size 的低通滤波时间常数
+  target_size_tau_s: 0.12
+
+# control/control_mode.py
+# 控制放行、任务模式切换、overhead 进入/退出阈值
+mode:
+  # 常规接近模式名称，通常不用改
+  approach_task_mode: "APPROACH_TRACK"
+  # 俯视保持模式名称，通常不用改
+  overhead_task_mode: "OVERHEAD_HOLD"
+  # vision 数据最大允许延迟，超过即视为 stale
+  max_vision_age_s: 0.3
+  # drone 状态最大允许延迟
+  max_drone_age_s: 0.3
+  # gimbal 状态最大允许延迟
+  max_gimbal_age_s: 0.3
+  # 允许 approach 放行前的云台 yaw 对齐阈值，单位 rad
+  yaw_align_thresh_rad: 0.35
+  # 进入 overhead 模式所需的最小目标尺度
+  overhead_entry_target_size_thresh: 0.30
+  # 进入 overhead 时期望的云台向下 pitch，单位 rad
+  overhead_entry_pitch_rad: -1.35
+  # overhead 进入时 pitch 允许偏差
+  overhead_entry_pitch_tol_rad: 0.20
+  # overhead 进入时 yaw 允许偏差
+  overhead_entry_yaw_tol_rad: 0.15
+  # 满足 overhead 条件后需持续保持多久才真正切入
+  overhead_entry_hold_s: 0.5
+  # overhead 模式下，目标尺度相对进入时下降多少则退出
+  overhead_exit_target_size_drop: 0.06
+  # body 控制是否必须要求 target_locked
+  require_target_locked_for_body: true
+  # approach 控制是否必须要求 target_stable
+  require_target_stable_for_approach: true
+  # approach 控制是否必须先完成 yaw 对齐
+  require_yaw_aligned_for_approach: true
+  # gimbal 控制是否要求 gimbal 数据新鲜
+  require_gimbal_fresh_for_gimbal: false
+  # body 控制是否要求 gimbal 数据新鲜
+  require_gimbal_fresh_for_body: true
+  # approach 控制是否要求 gimbal 数据新鲜
+  require_gimbal_fresh_for_approach: true
+
+# control/gimbal_controller.py
+# 云台局部控制参数：根据 ex_cam / ey_cam 输出 yaw_rate / pitch_rate
+gimbal:
+  approach_task_mode: "APPROACH_TRACK"
+  overhead_task_mode: "OVERHEAD_HOLD"
+  # 常规模式下 yaw 比例增益
+  kp_yaw: 3.2
+  # 常规模式下 pitch 比例增益
+  kp_pitch: 1.8
+  # 常规模式下 yaw 积分增益
+  ki_yaw: 0.05
+  # 常规模式下 pitch 积分增益
+  ki_pitch: 0.03
+  # 常规模式下 yaw 微分增益
+  kd_yaw: 0.18
+  # 常规模式下 pitch 微分增益
+  kd_pitch: 0.12
+  # 是否启用微分项
+  use_derivative: false
+  # ex_cam 的 deadband，小于该值时不驱动 yaw
+  deadband_x: 0.01
+  # ey_cam 的 deadband，小于该值时不驱动 pitch
+  deadband_y: 0.01
+  # 中心附近保持静止，避免 yaw 中心抖动
+  center_hold_yaw_threshold: 0.018
+  # 中心附近保持静止，避免 pitch 中心抖动
+  center_hold_pitch_threshold: 0.024
+  # 积分限幅，避免目标暂时丢失时积分累积过多
+  integral_limit: 0.25
+  # yaw 微分限幅，抑制检测跳变导致的尖峰
+  derivative_limit_yaw: 1.5
+  # pitch 微分限幅，抑制检测跳变导致的尖峰
+  derivative_limit_pitch: 1.0
+  # 常规模式下最大 yaw_rate，单位 rad/s
+  max_yaw_rate: 1.1
+  # 常规模式下最大 pitch_rate，单位 rad/s
+  max_pitch_rate: 0.85
+  # yaw 方向符号，安装方向反了可改成 -1
+  yaw_sign: 1.0
+  # pitch 方向符号；当前实机链路下默认使用 -1，才能让 ey_cam 朝 0 收敛
+  pitch_sign: -1.0
+  # overhead 模式下期望云台朝下 pitch，单位 rad
+  overhead_downward_pitch_rad: -1.35
+  # overhead 模式下 yaw deadband
+  overhead_deadband_yaw: 0.02
+  # overhead 模式下 pitch deadband
+  overhead_deadband_pitch: 0.03
+  # overhead 模式下 yaw 比例增益
+  overhead_kp_yaw: 0.0
+  # overhead 模式下 pitch 比例增益
+  overhead_kp_pitch: 1.5
+  # overhead 模式下最大 yaw_rate
+  overhead_max_yaw_rate: 0.3
+  # overhead 模式下最大 pitch_rate
+  overhead_max_pitch_rate: 0.8
+  # 微分计算允许的最小 dt
+  dt_min: 0.001
+
+# control/body_controller.py
+# 机体横移与偏航控制参数：根据 ex_body / gimbal_yaw 输出 vy / yaw_rate
+body:
+  approach_task_mode: "APPROACH_TRACK"
+  overhead_task_mode: "OVERHEAD_HOLD"
+  # 常规模式下横向速度比例增益
+  kp_vy: 1.0
+  # 常规模式下横向速度微分增益
+  kd_vy: 0.0
+  # 是否启用 vy 的微分项
+  use_derivative_vy: false
+  # 常规模式下航向角速度比例增益
+  kp_yaw: 1.2
+  # 常规模式下航向角速度微分增益
+  kd_yaw: 0.0
+  # 是否启用 yaw_rate 的微分项
+  use_derivative_yaw: false
+  # ex_body 的 deadband
+  deadband_ex_body: 0.02
+  # gimbal_yaw 的 deadband
+  deadband_gimbal_yaw: 0.02
+  # 最大横向速度 vy，单位 m/s
+  max_vy: 1.0
+  # 最大航向角速度 yaw_rate，单位 rad/s
+  max_yaw_rate: 1.0
+  # vy 方向符号，方向反了可改成 -1
+  vy_sign: 1.0
+  # yaw_rate 方向符号，方向反了可改成 -1
+  yaw_sign: 1.0
+  # overhead 模式下基于 ex_cam 的 vy 比例增益
+  overhead_kp_vy: 1.0
+  # overhead 模式下 vy 微分增益
+  overhead_kd_vy: 0.0
+  # overhead 模式下是否启用 vy 微分项
+  overhead_use_derivative_vy: false
+  # overhead 模式下 ex_cam deadband
+  overhead_deadband_ex_cam: 0.02
+  # overhead 模式下 yaw 比例增益
+  overhead_kp_yaw: 0.0
+  # overhead 模式下 yaw deadband
+  overhead_deadband_yaw: 0.05
+  # 微分计算允许的最小 dt
+  dt_min: 0.001
+
+# control/approach_controller.py
+# 前向接近控制参数：根据 target_size 或 overhead 下的 ey_cam 输出 vx
+approach:
+  approach_task_mode: "APPROACH_TRACK"
+  overhead_task_mode: "OVERHEAD_HOLD"
+  # 期望目标尺度，越大表示希望飞得更近
+  target_size_ref: 0.35
+  # 常规模式下前向速度比例增益
+  kp_vx: 1.0
+  # 常规模式下前向速度微分增益
+  kd_vx: 0.0
+  # 是否启用常规模式微分项
+  use_derivative: false
+  # 尺度误差 deadband
+  deadband_size: 0.02
+  # 最大前进速度，单位 m/s
+  max_forward_vx: 0.8
+  # 允许后退时的最大后退速度，单位 m/s
+  max_backward_vx: 0.2
+  # vx 方向符号，方向反了可改成 -1
+  vx_sign: 1.0
+  # 是否允许目标过大时自动后退
+  allow_backward: false
+  # 判定 target_size 有效的最小值
+  min_valid_target_size: 0.01
+  # overhead 模式下基于 ey_cam 的 vx 比例增益
+  overhead_kp_vx: 1.0
+  # overhead 模式下 vx 微分增益
+  overhead_kd_vx: 0.0
+  # overhead 模式下是否启用微分项
+  overhead_use_derivative: false
+  # overhead 模式下 ey_cam deadband
+  overhead_deadband_ey_cam: 0.02
+  # overhead 模式下 vx 方向符号
+  overhead_vx_sign: 1.0
+  # overhead 模式下是否允许后退
+  overhead_allow_backward: false
+  # 微分计算允许的最小 dt
+  dt_min: 0.001
+
+# control/command_shaper.py
+# 最终命令统一限幅与 slew rate 平滑参数
+shaper:
+  # 最终输出允许的最大 vx
+  max_vx: 0.8
+  # 最终输出允许的最大 vy
+  max_vy: 1.0
+  # 最终输出允许的最大 yaw_rate
+  max_yaw_rate: 1.0
+  # 最终输出允许的最大 gimbal yaw_rate
+  max_gimbal_yaw_rate: 1.0
+  # 最终输出允许的最大 gimbal pitch_rate
+  max_gimbal_pitch_rate: 1.0
+  # vx 每秒最大变化量
+  max_vx_rate: 1.0
+  # vy 每秒最大变化量
+  max_vy_rate: 1.5
+  # yaw_rate 每秒最大变化量
+  max_yaw_rate_rate: 2.0
+  # gimbal yaw_rate 每秒最大变化量
+  max_gimbal_yaw_rate_rate: 3.0
+  # gimbal pitch_rate 每秒最大变化量
+  max_gimbal_pitch_rate_rate: 3.0
+  # 控制器被 disable 后，是否平滑收敛到 0，而不是立刻清零
+  smooth_to_zero_when_disabled: true
+  # slew limit 生效所需的最小 dt
+  dt_min: 0.001
+
+# control/control_executor.py
+# 下发到 telemetry_link 的执行层参数
+executor:
+  # 机体速度控制所使用的 MAVLink frame，当前 1 通常表示 BODY_NED
+  body_frame: 1
+  # 使用角度制发送云台角度命令时的固定 roll 值
+  gimbal_roll_deg: 0.0
+  # 是否打印实际执行出去的控制命令日志
+  log_commands: true
