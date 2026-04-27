@@ -32,6 +32,7 @@ class ControlExecutorConfig:
     body_frame: int = 1
     gimbal_roll_deg: float = 0.0
     log_commands: bool = True
+    send_commands: bool = True
 
 
 @dataclass(slots=True)
@@ -57,17 +58,35 @@ class ControlExecutor:
         self._last_gimbal_command = None
         self._last_exception = None
         self._last_gimbal_rate_command_at = None
+        if not self.config.send_commands:
+            self.logger.info("skip reset command send because executor.send_commands=false")
+            return
         self._send_zero_body()
         self._send_zero_gimbal()
 
     def execute(self, cmd: ShapedCommand | None) -> None:
         if cmd is None:
             return
-        if self.telemetry_link is None:
-            self.logger.warning("skip execute because telemetry_link is not set")
-            return
         if not bool(getattr(cmd, "valid", False)):
             self.logger.debug("skip execute because shaped command is invalid")
+            return
+        if not self.config.send_commands:
+            if self.config.log_commands:
+                self.logger.info(
+                    "dry-run shaped command vx=%.3f vy=%.3f yaw_rate=%.3f gimbal_rate=(%.3f,%.3f) enable=(gimbal:%s body:%s approach:%s) active=%s",
+                    self._finite_or_zero(getattr(cmd, "vx_cmd", 0.0)),
+                    self._finite_or_zero(getattr(cmd, "vy_cmd", 0.0)),
+                    self._finite_or_zero(getattr(cmd, "yaw_rate_cmd", 0.0)),
+                    self._finite_or_zero(getattr(cmd, "gimbal_yaw_rate_cmd", 0.0)),
+                    self._finite_or_zero(getattr(cmd, "gimbal_pitch_rate_cmd", 0.0)),
+                    bool(getattr(cmd, "enable_gimbal", False)),
+                    bool(getattr(cmd, "enable_body", False)),
+                    bool(getattr(cmd, "enable_approach", False)),
+                    bool(getattr(cmd, "active", False)),
+                )
+            return
+        if self.telemetry_link is None:
+            self.logger.warning("skip execute because telemetry_link is not set")
             return
 
         try:

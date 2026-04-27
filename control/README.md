@@ -151,6 +151,7 @@
 - 消费 `ShapedCommand`
 - 拆分机体命令与云台命令
 - 复用 `telemetry_link` 已有发送接口
+- 根据 `executor.send_commands` 决定是真下发还是只记录 dry-run 命令
 - 做非常薄的一层字段适配
 - 做最小必要的空值/接口可用性检查
 - 记录简单执行日志
@@ -167,6 +168,15 @@
 - target / bbox / error 逻辑
 
 ## 2. 控制层输入链路
+
+主流程开关统一放在 [config.yaml](/home/level6/uav_project/src/control/config.yaml)：
+
+- `runtime.enable_gimbal_controller`：控制是否允许云台控制器参与主流程
+- `runtime.enable_body_controller`：控制是否允许机体横移/偏航控制器参与主流程
+- `runtime.enable_approach_controller`：控制是否允许前向接近控制器参与主流程
+- `executor.send_commands`：控制是否真的向 `telemetry_link` 下发命令；设为 `false` 时只计算和记录 dry-run 命令
+
+`control/debug/` 独立调参入口已移除，调试和分路验证直接通过以上配置开关完成。
 
 当前推荐的数据链路是：
 
@@ -605,10 +615,11 @@ control_executor.execute(shaped_command)
 
 1. `cmd is None` 时直接返回
 2. `cmd.valid=False` 时直接返回
-3. `telemetry_link` 不存在时记录日志并返回
-4. body 通道按 `enable_body / enable_approach` 或“仍有非零整形输出”决定是否继续下发
-5. gimbal 通道按 `enable_gimbal` 或“仍有非零整形输出”决定是否继续下发
-6. 捕获发送异常并记录日志，不在这里做复杂恢复状态机
+3. `executor.send_commands=false` 时只记录 dry-run 命令，不调用发送接口
+4. `telemetry_link` 不存在时记录日志并返回
+5. body 通道按 `enable_body / enable_approach` 或“仍有非零整形输出”决定是否继续下发
+6. gimbal 通道按 `enable_gimbal` 或“仍有非零整形输出”决定是否继续下发
+7. 捕获发送异常并记录日志，不在这里做复杂恢复状态机
 
 ### 8.5 `reset()`
 
@@ -760,7 +771,7 @@ gimbal_controller = GimbalController(config=config)
 - `target_stable`
 - `control_ready`
 
-### 12.4 debug / hold
+### 12.4 hold reason
 
 - `hold_reason`
 

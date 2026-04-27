@@ -1,11 +1,11 @@
 # 数据源模式：real / sitl / dual
-data_source: real
+data_source: sitl
 
 # 当前对外暴露状态与发送控制命令的 active source：real / sitl
-active_source: real
+active_source: sitl
 
 sitl:
-  # SITL 推荐使用 tcp 连接
+  # SITL 推荐使用 tcp 连接 SITL一般端口在5762
   connection_type: tcp
   serial_port: /dev/ttyUSB1
   baudrate: 115200
@@ -13,7 +13,7 @@ sitl:
   udp_host: 0.0.0.0
   udp_port: 14550
   tcp_host: 127.0.0.1
-  tcp_port: 5760
+  tcp_port: 5762
 
 real:
   # 真机推荐使用 serial 连接
@@ -24,7 +24,7 @@ real:
   udp_host: 0.0.0.0
   udp_port: 14550
   tcp_host: 127.0.0.1
-  tcp_port: 5760
+  tcp_port: 5762
 
 # 连续控制命令最大发送频率，避免占满链路
 control_send_rate_hz: 10
@@ -79,6 +79,9 @@ message_interval_hz:
 
 # 是否把最新 drone/gimbal/link 状态通过本地 UDP 发给 fusion 等上层进程
 state_udp_enabled: true
+
+# 是否默认启用终端双框 UI；也可以启动时加 --ui 临时启用
+ui_enabled: true
 
 # 状态广播目的 IP
 state_udp_ip: "127.0.0.1"

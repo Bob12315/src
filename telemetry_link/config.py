@@ -45,6 +45,7 @@ class TelemetryConfig:
     state_udp_enabled: bool
     state_udp_ip: str
     state_udp_port: int
+    ui_enabled: bool
     log_level: str
 
 
@@ -100,6 +101,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--state-udp-enabled", type=_to_bool)
     parser.add_argument("--state-udp-ip")
     parser.add_argument("--state-udp-port", type=int)
+    parser.add_argument("--ui", dest="ui_enabled", action="store_true", default=None)
     parser.add_argument("--log-level")
     return parser
 
@@ -169,5 +171,6 @@ def load_config() -> TelemetryConfig:
         state_udp_enabled=bool(merged.get("state_udp_enabled", True)),
         state_udp_ip=str(merged.get("state_udp_ip", "127.0.0.1")),
         state_udp_port=int(merged.get("state_udp_port", 5010)),
+        ui_enabled=bool(merged.get("ui_enabled", False)),
         log_level=str(merged["log_level"]),
     )

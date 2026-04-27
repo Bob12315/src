@@ -141,18 +141,136 @@ class CommandSender(threading.Thread):
                 self.logger.info("sending action command=set_mode mode=%s", str(command.params["mode"]))
                 self.client.send_raw_message(lambda master: self._send_set_mode(master, str(command.params["mode"])))
             elif command.action_type == ActionType.REQUEST_MESSAGE_INTERVAL:
+                rate_hz = float(command.params["rate_hz"])
                 self.logger.info(
-                    "sending action command=request_message_interval message=%s rate_hz=%.2f",
+                    "sending action command=request_message_interval message=%s rate_hz=%s",
                     str(command.params["message_name"]),
-                    float(command.params["rate_hz"]),
+                    "default" if rate_hz <= 0 else f"{rate_hz:.2f}",
                 )
                 self.client.send_raw_message(
                     lambda master: self._send_message_interval_request(
                         master,
                         message_name=str(command.params["message_name"]),
-                        rate_hz=float(command.params["rate_hz"]),
+                        rate_hz=rate_hz,
                     )
                 )
+            elif command.action_type == ActionType.CONDITION_YAW:
+                self.logger.info(
+                    "sending action command=condition_yaw yaw_deg=%.2f speed_deg_s=%.2f direction=%s relative=%s",
+                    float(command.params["yaw_deg"]),
+                    float(command.params["yaw_speed_deg_s"]),
+                    int(command.params["direction"]),
+                    bool(command.params["relative"]),
+                )
+                self.client.send_raw_message(
+                    lambda master: self._command_long(
+                        master,
+                        mavutil.mavlink.MAV_CMD_CONDITION_YAW,
+                        [
+                            float(command.params["yaw_deg"]),
+                            float(command.params["yaw_speed_deg_s"]),
+                            float(command.params["direction"]),
+                            1.0 if bool(command.params["relative"]) else 0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                        ],
+                    )
+                )
+            elif command.action_type == ActionType.CHANGE_SPEED:
+                self.logger.info(
+                    "sending action command=change_speed speed_mps=%.2f speed_type=%s",
+                    float(command.params["speed_mps"]),
+                    int(command.params["speed_type"]),
+                )
+                self.client.send_raw_message(
+                    lambda master: self._command_long(
+                        master,
+                        mavutil.mavlink.MAV_CMD_DO_CHANGE_SPEED,
+                        [
+                            float(command.params["speed_type"]),
+                            float(command.params["speed_mps"]),
+                            -1.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                        ],
+                    )
+                )
+            elif command.action_type == ActionType.SET_HOME:
+                self.logger.info(
+                    "sending action command=set_home current=%s lat=%.7f lon=%.7f alt=%.2f",
+                    bool(command.params["current"]),
+                    float(command.params["lat"]),
+                    float(command.params["lon"]),
+                    float(command.params["alt"]),
+                )
+                self.client.send_raw_message(
+                    lambda master: self._command_long(
+                        master,
+                        mavutil.mavlink.MAV_CMD_DO_SET_HOME,
+                        [
+                            1.0 if bool(command.params["current"]) else 0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            float(command.params["lat"]),
+                            float(command.params["lon"]),
+                            float(command.params["alt"]),
+                        ],
+                    )
+                )
+            elif command.action_type == ActionType.GLOBAL_GOTO:
+                self.logger.info(
+                    "sending action command=global_goto lat=%.7f lon=%.7f alt=%.2f frame=%s",
+                    float(command.params["lat"]),
+                    float(command.params["lon"]),
+                    float(command.params["alt"]),
+                    int(command.params["frame"]),
+                )
+                self.client.send_raw_message(lambda master: self._send_global_goto(master, command))
+            elif command.action_type == ActionType.LOCAL_POSITION:
+                self.logger.info(
+                    "sending action command=local_position x=%.2f y=%.2f z=%.2f frame=%s",
+                    float(command.params["x"]),
+                    float(command.params["y"]),
+                    float(command.params["z"]),
+                    int(command.params["frame"]),
+                )
+                self.client.send_raw_message(lambda master: self._send_local_position(master, command))
+            elif command.action_type == ActionType.REPOSITION:
+                self.logger.info(
+                    "sending action command=reposition lat=%.7f lon=%.7f alt=%.2f speed=%.2f yaw=%s",
+                    float(command.params["lat"]),
+                    float(command.params["lon"]),
+                    float(command.params["alt"]),
+                    float(command.params["ground_speed_mps"]),
+                    "nan" if command.params.get("yaw_deg") is None else f"{float(command.params['yaw_deg']):.2f}",
+                )
+                self.client.send_raw_message(lambda master: self._send_reposition(master, command))
+            elif command.action_type == ActionType.SET_ROI_LOCATION:
+                self.logger.info(
+                    "sending action command=set_roi_location lat=%.7f lon=%.7f alt=%.2f",
+                    float(command.params["lat"]),
+                    float(command.params["lon"]),
+                    float(command.params["alt"]),
+                )
+                self.client.send_raw_message(lambda master: self._send_roi_location(master, command))
+            elif command.action_type == ActionType.ROI_NONE:
+                self.logger.info(
+                    "sending action command=roi_none gimbal_device_id=%s",
+                    int(command.params.get("gimbal_device_id", 0)),
+                )
+                self.client.send_raw_message(lambda master: self._send_roi_none(master, command))
+            elif command.action_type == ActionType.GIMBAL_MANAGER_CONFIGURE:
+                self.logger.info(
+                    "sending action command=gimbal_manager_configure gimbal_device_id=%s primary_sysid=%s primary_compid=%s",
+                    int(command.params.get("gimbal_device_id", 0)),
+                    command.params.get("primary_sysid"),
+                    command.params.get("primary_compid"),
+                )
+                self.client.send_raw_message(lambda master: self._send_gimbal_manager_configure(master, command))
             elif command.action_type == ActionType.GIMBAL_ANGLE:
                 self.logger.info(
                     "sending action command=gimbal_angle pitch=%.2f yaw=%.2f roll=%.2f mount_mode=%s",
@@ -210,16 +328,7 @@ class CommandSender(threading.Thread):
             self.logger.warning("failed to send gimbal rate command: %s", exc)
 
     def _send_velocity(self, master, command: ControlCommand) -> None:
-        type_mask = (
-            mavutil.mavlink.POSITION_TARGET_TYPEMASK_X_IGNORE
-            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_Y_IGNORE
-            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_Z_IGNORE
-            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE
-            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE
-            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE
-            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE
-            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
-        )
+        type_mask = self._velocity_yaw_rate_type_mask()
         master.mav.set_position_target_local_ned_send(
             0,
             master.target_system,
@@ -239,19 +348,19 @@ class CommandSender(threading.Thread):
             command.yaw_rate,
         )
 
-    def _send_yaw_rate(self, master, command: ControlCommand) -> None:
-        type_mask = (
+    def _velocity_yaw_rate_type_mask(self) -> int:
+        return (
             mavutil.mavlink.POSITION_TARGET_TYPEMASK_X_IGNORE
             | mavutil.mavlink.POSITION_TARGET_TYPEMASK_Y_IGNORE
             | mavutil.mavlink.POSITION_TARGET_TYPEMASK_Z_IGNORE
-            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_VX_IGNORE
-            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_VY_IGNORE
-            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_VZ_IGNORE
             | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE
             | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE
             | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE
             | mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE
         )
+
+    def _send_yaw_rate(self, master, command: ControlCommand) -> None:
+        type_mask = self._velocity_yaw_rate_type_mask()
         master.mav.set_position_target_local_ned_send(
             0,
             master.target_system,
@@ -269,6 +378,131 @@ class CommandSender(threading.Thread):
             0.0,
             0.0,
             command.yaw_rate,
+        )
+
+    def _position_only_type_mask(self) -> int:
+        return (
+            mavutil.mavlink.POSITION_TARGET_TYPEMASK_VX_IGNORE
+            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_VY_IGNORE
+            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_VZ_IGNORE
+            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE
+            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE
+            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE
+            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE
+            | mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
+        )
+
+    def _send_global_goto(self, master, command: ActionCommand) -> None:
+        master.mav.set_position_target_global_int_send(
+            0,
+            master.target_system,
+            master.target_component,
+            int(command.params["frame"]),
+            self._position_only_type_mask(),
+            int(round(float(command.params["lat"]) * 1e7)),
+            int(round(float(command.params["lon"]) * 1e7)),
+            float(command.params["alt"]),
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        )
+
+    def _send_local_position(self, master, command: ActionCommand) -> None:
+        master.mav.set_position_target_local_ned_send(
+            0,
+            master.target_system,
+            master.target_component,
+            int(command.params["frame"]),
+            self._position_only_type_mask(),
+            float(command.params["x"]),
+            float(command.params["y"]),
+            float(command.params["z"]),
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        )
+
+    def _send_reposition(self, master, command: ActionCommand) -> None:
+        yaw_deg = command.params.get("yaw_deg")
+        master.mav.command_int_send(
+            master.target_system,
+            master.target_component,
+            mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+            mavutil.mavlink.MAV_CMD_DO_REPOSITION,
+            0,
+            0,
+            float(command.params["ground_speed_mps"]),
+            0.0,
+            0.0,
+            float("nan") if yaw_deg is None else float(yaw_deg),
+            int(round(float(command.params["lat"]) * 1e7)),
+            int(round(float(command.params["lon"]) * 1e7)),
+            float(command.params["alt"]),
+        )
+
+    def _send_roi_location(self, master, command: ActionCommand) -> None:
+        master.mav.command_int_send(
+            master.target_system,
+            master.target_component,
+            mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+            mavutil.mavlink.MAV_CMD_DO_SET_ROI_LOCATION,
+            0,
+            0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            int(round(float(command.params["lat"]) * 1e7)),
+            int(round(float(command.params["lon"]) * 1e7)),
+            float(command.params["alt"]),
+        )
+
+    def _send_roi_none(self, master, command: ActionCommand) -> None:
+        master.mav.command_int_send(
+            master.target_system,
+            master.target_component,
+            mavutil.mavlink.MAV_FRAME_GLOBAL,
+            mavutil.mavlink.MAV_CMD_DO_SET_ROI_NONE,
+            0,
+            0,
+            float(command.params.get("gimbal_device_id", 0)),
+            0.0,
+            0.0,
+            0.0,
+            0,
+            0,
+            0.0,
+        )
+
+    def _send_gimbal_manager_configure(self, master, command: ActionCommand) -> None:
+        primary_sysid = command.params.get("primary_sysid")
+        primary_compid = command.params.get("primary_compid")
+        if primary_sysid is None:
+            primary_sysid = getattr(master, "source_system", getattr(master.mav, "srcSystem", 255))
+        if primary_compid is None:
+            primary_compid = getattr(master, "source_component", getattr(master.mav, "srcComponent", 0))
+        self._command_long(
+            master,
+            mavutil.mavlink.MAV_CMD_DO_GIMBAL_MANAGER_CONFIGURE,
+            [
+                float(primary_sysid),
+                float(primary_compid),
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                float(command.params.get("gimbal_device_id", 0)),
+            ],
         )
 
     def _send_gimbal_manager_pitchyaw_rate(

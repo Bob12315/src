@@ -239,6 +239,11 @@ class LinkManager:
     def submit_action_command(self, command: ActionCommand) -> None:
         self._active_runtime().command_queue.put_action(command)
 
+    def clear_continuous_commands(self) -> None:
+        runtime = self._active_runtime()
+        runtime.command_queue.clear_control()
+        runtime.command_queue.clear_gimbal_rate()
+
     def set_mode(self, mode: str, priority: int = 5) -> None:
         self.submit_action_command(
             ActionCommand(
@@ -289,6 +294,188 @@ class LinkManager:
         self.submit_action_command(
             ActionCommand(
                 action_type=ActionType.LAND,
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def condition_yaw(
+        self,
+        yaw_deg: float,
+        yaw_speed_deg_s: float = 20.0,
+        direction: int = 0,
+        relative: bool = False,
+        priority: int = 4,
+    ) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.CONDITION_YAW,
+                params={
+                    "yaw_deg": float(yaw_deg),
+                    "yaw_speed_deg_s": float(yaw_speed_deg_s),
+                    "direction": int(direction),
+                    "relative": bool(relative),
+                },
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def change_speed(self, speed_mps: float, speed_type: int = 1, priority: int = 4) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.CHANGE_SPEED,
+                params={"speed_mps": float(speed_mps), "speed_type": int(speed_type)},
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def set_home_current(self, priority: int = 4) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.SET_HOME,
+                params={"current": True, "lat": 0.0, "lon": 0.0, "alt": 0.0},
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def set_home_location(self, lat: float, lon: float, alt: float, priority: int = 4) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.SET_HOME,
+                params={"current": False, "lat": float(lat), "lon": float(lon), "alt": float(alt)},
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def global_goto(
+        self,
+        lat: float,
+        lon: float,
+        alt: float,
+        frame: int,
+        priority: int = 4,
+    ) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.GLOBAL_GOTO,
+                params={"lat": float(lat), "lon": float(lon), "alt": float(alt), "frame": int(frame)},
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def local_position(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        frame: int,
+        priority: int = 4,
+    ) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.LOCAL_POSITION,
+                params={"x": float(x), "y": float(y), "z": float(z), "frame": int(frame)},
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def reposition(
+        self,
+        lat: float,
+        lon: float,
+        alt: float,
+        ground_speed_mps: float = -1.0,
+        yaw_deg: float | None = None,
+        priority: int = 4,
+    ) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.REPOSITION,
+                params={
+                    "lat": float(lat),
+                    "lon": float(lon),
+                    "alt": float(alt),
+                    "ground_speed_mps": float(ground_speed_mps),
+                    "yaw_deg": yaw_deg,
+                },
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def set_roi_location(self, lat: float, lon: float, alt: float, priority: int = 4) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.SET_ROI_LOCATION,
+                params={"lat": float(lat), "lon": float(lon), "alt": float(alt)},
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def roi_none(self, gimbal_device_id: int = 0, priority: int = 4) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.ROI_NONE,
+                params={"gimbal_device_id": int(gimbal_device_id)},
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def gimbal_manager_configure(
+        self,
+        gimbal_device_id: int = 0,
+        primary_sysid: int | None = None,
+        primary_compid: int | None = None,
+        priority: int = 4,
+    ) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.GIMBAL_MANAGER_CONFIGURE,
+                params={
+                    "gimbal_device_id": int(gimbal_device_id),
+                    "primary_sysid": primary_sysid,
+                    "primary_compid": primary_compid,
+                },
+                priority=priority,
+                retries_left=self.cfg.action_cmd_retries,
+                retry_interval_sec=self.cfg.action_retry_interval_sec,
+                created_at=time.time(),
+            )
+        )
+
+    def request_message_interval(self, message_name: str, rate_hz: float, priority: int = 6) -> None:
+        self.submit_action_command(
+            ActionCommand(
+                action_type=ActionType.REQUEST_MESSAGE_INTERVAL,
+                params={"message_name": str(message_name), "rate_hz": float(rate_hz)},
                 priority=priority,
                 retries_left=self.cfg.action_cmd_retries,
                 retry_interval_sec=self.cfg.action_retry_interval_sec,

@@ -24,6 +24,9 @@ class ControlRuntimeConfig:
     perception_timeout_sec: float
     print_rate_hz: float
     require_gimbal_feedback: bool
+    enable_gimbal_controller: bool
+    enable_body_controller: bool
+    enable_approach_controller: bool
     log_level: str
 
 
@@ -112,6 +115,9 @@ def load_config(argv: list[str] | None = None) -> ControlConfig:
             perception_timeout_sec=float(runtime.get("perception_timeout_sec", 1.0)),
             print_rate_hz=float(runtime.get("print_rate_hz", 2.0)),
             require_gimbal_feedback=bool(runtime.get("require_gimbal_feedback", True)),
+            enable_gimbal_controller=bool(runtime.get("enable_gimbal_controller", True)),
+            enable_body_controller=bool(runtime.get("enable_body_controller", True)),
+            enable_approach_controller=bool(runtime.get("enable_approach_controller", True)),
             log_level=str(runtime.get("log_level", "INFO")),
         ),
         input_adapter=ControlInputAdapterConfig(
@@ -248,5 +254,6 @@ def load_config(argv: list[str] | None = None) -> ControlConfig:
             body_frame=int(executor.get("body_frame", 1)),
             gimbal_roll_deg=float(executor.get("gimbal_roll_deg", 0.0)),
             log_commands=bool(executor.get("log_commands", True)),
+            send_commands=bool(executor.get("send_commands", True)),
         ),
     )

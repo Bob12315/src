@@ -12,6 +12,12 @@ runtime:
   print_rate_hz: 2.0
   # fusion 是否要求必须有云台反馈才认为融合结果可用
   require_gimbal_feedback: true
+  # 是否启用云台控制器；false 时主流程仍运行，但不会生成云台控制放行
+  enable_gimbal_controller: true
+  # 是否启用机体横移/偏航控制器
+  enable_body_controller: true
+  # 是否启用前向接近控制器
+  enable_approach_controller: true
   # 日志级别，可选 DEBUG / INFO / WARNING / ERROR
   log_level: INFO
 
@@ -262,3 +268,5 @@ executor:
   gimbal_roll_deg: 0.0
   # 是否打印实际执行出去的控制命令日志
   log_commands: true
+  # 是否真的向 telemetry_link 下发命令；false 时只计算和打印 dry-run 命令
+  send_commands: true

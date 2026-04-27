@@ -4,6 +4,8 @@ import logging
 import threading
 import time
 
+from pymavlink import mavutil
+
 from config import TelemetryConfig
 from mavlink_client import MavlinkClient
 from state_cache import StateCache
@@ -66,6 +68,8 @@ class TelemetryReceiver(threading.Thread):
 
     def _handle_message(self, msg_type: str, message, now: float) -> None:
         if msg_type == "HEARTBEAT":
+            if not self._is_autopilot_heartbeat(message):
+                return
             armed = heartbeat_is_armed(message.base_mode)
             mode = decode_copter_mode(message.custom_mode)
             self.state_cache.update_drone_state(
@@ -141,10 +145,7 @@ class TelemetryReceiver(threading.Thread):
             self.state_cache.update_drone_state(
                 altitude_valid=True,
                 altitude=float(message.alt),
-                relative_altitude=float(message.alt),
-                relative_alt_valid=True,
                 last_altitude_time=now,
-                last_relative_alt_time=now,
             )
             return
 
@@ -209,6 +210,11 @@ class TelemetryReceiver(threading.Thread):
 
         if msg_type == "RC_CHANNELS":
             return
+
+    def _is_autopilot_heartbeat(self, message) -> bool:
+        autopilot = int(getattr(message, "autopilot", mavutil.mavlink.MAV_AUTOPILOT_INVALID))
+        mav_type = int(getattr(message, "type", mavutil.mavlink.MAV_TYPE_GCS))
+        return autopilot != mavutil.mavlink.MAV_AUTOPILOT_INVALID and mav_type != mavutil.mavlink.MAV_TYPE_GCS
 
     def _parse_gimbal_device_attitude(self, message) -> tuple[float, float, float, bool]:
         q = [float(v) for v in getattr(message, "q", [])]

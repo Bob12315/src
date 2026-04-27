@@ -155,7 +155,7 @@ ArduPilot 的 MAVLink 消息流速可以通过飞控参数进行控制：
 - 支持串口连接
 - 支持 UDP 连接
 - 支持 TCP 连接，推荐用于 ArduPilot SITL
-- `wait_heartbeat()` 获取 `target_system / target_component`
+- `wait_heartbeat()` 只接受飞控 autopilot heartbeat，并获取 `target_system / target_component`
 - 接收并解析常用状态消息
 - 线程安全状态缓存
 - 连续控制命令与一次性动作命令分流
@@ -176,6 +176,13 @@ ArduPilot 的 MAVLink 消息流速可以通过飞控参数进行控制：
 - `RC_CHANNELS`
 - `MOUNT_STATUS`
 - `GIMBAL_DEVICE_ATTITUDE_STATUS`
+
+关键解析约定：
+
+- `HEARTBEAT` 只接受飞控/autopilot 来源；会忽略 MAVProxy、地面站等 GCS heartbeat，避免 `mode` 被 GCS 的 `custom_mode=0` 误解码成 `STABILIZE`
+- `altitude` 可由 `GLOBAL_POSITION_INT.alt` 或 `VFR_HUD.alt` 更新
+- `relative_altitude` 只由 `GLOBAL_POSITION_INT.relative_alt` 或 `LOCAL_POSITION_NED.z` 推导，不使用 `VFR_HUD.alt`，避免相对高度在 home-relative 和海拔高度之间跳变
+- `wait_heartbeat()` 如果超时或目标 system id 仍为 `0`，会判定连接失败并继续重连，不会把无效链路标记为 connected
 
 ## 6. 数据结构
 
@@ -219,6 +226,8 @@ ArduPilot 的 MAVLink 消息流速可以通过飞控参数进行控制：
 当前约束：
 
 - 速度只来自 `LOCAL_POSITION_NED.vx/vy/vz`
+- `altitude` 表示飞控报告的高度值，可能是绝对高度/海拔语义
+- `relative_altitude` 表示相对 home 或 local NED 推导的高度，不由 `VFR_HUD.alt` 覆盖
 - `velocity_source` 固定为 `ekf`
 - `velocity_quality` 根据 `gps_fix_type` 推导
 - 断链或 `stale=true` 时，可以保留最后值用于日志，但对应 `*_valid` 必须为 `false`
@@ -469,6 +478,17 @@ telemetry_link 连接的应当是：
 - `set_mode(...)`
 - `arm()`
 - `disarm()`
+- `condition_yaw(...)`
+- `change_speed(...)`
+- `set_home_current(...)`
+- `set_home_location(...)`
+- `global_goto(...)`
+- `local_position(...)`
+- `reposition(...)`
+- `set_roi_location(...)`
+- `roi_none(...)`
+- `gimbal_manager_configure(...)`
+- `request_message_interval(...)`
 - `send_gimbal_angle(...)`
 - `send_gimbal_rate(...)`
 - `send_velocity_command(...)`
@@ -512,12 +532,25 @@ switch_source sitl
 - `switch_source sitl`
 - `mode <MODE_NAME>`
 - `arm`
+- `arm throttle`
 - `disarm`
 - `takeoff <altitude_m>`
 - `land`
+- `condition_yaw <yaw_deg> [speed_deg_s] [cw|ccw|shortest] [absolute|relative]`
+- `change_speed <speed_mps> [ground|air|climb|descent]`
+- `set_home current`
+- `set_home <lat> <lon> <alt_m>`
+- `global_goto <lat> <lon> <alt_m> [relative|global|terrain]`
+- `local_pos <x_m> <y_m> <z_m> [local|offset|body|body_offset]`
+- `reposition <lat> <lon> <rel_alt_m> [groundspeed_mps] [yaw_deg]`
 - `body_vel <forward_mps> <right_mps> <down_mps>`
 - `yaw_rate <rad_per_sec>`
 - `stop`
+- `set_roi_location <lat> <lon> <alt_m>`
+- `roi_none [gimbal_device_id]`
+- `gimbal_manager_configure [gimbal_device_id] [primary_sysid primary_compid]`
+- `set_message_interval <MESSAGE_NAME> <rate_hz|default>`
+- `message_interval <MESSAGE_NAME> <rate_hz|default>`
 - `gimbal <pitch_deg> <yaw_deg> [roll_deg]`
 - `gimbal_rate <pitch_rate_deg_s> <yaw_rate_deg_s> [follow|lock]`
 
@@ -535,11 +568,22 @@ mode LAND
 mode RTL
 
 arm
+arm throttle
 disarm
 takeoff 3
 takeoff 5
 land
 
+condition_yaw 90 20 shortest absolute
+condition_yaw 45 15 cw relative
+change_speed 3 ground
+set_home current
+set_home 31.1234567 121.1234567 587.0
+global_goto 31.1234567 121.1234567 20 relative
+local_pos 2 0 -1 body_offset
+reposition 31.1234567 121.1234567 20 2.5 90
+
+body_vel 0 0 0
 body_vel 1 0 0
 body_vel -1 0 0
 body_vel 0 -1 0
@@ -550,13 +594,19 @@ yaw_rate 0.3
 yaw_rate -0.3
 stop
 
+set_roi_location 31.1234567 121.1234567 20
+roi_none
+gimbal_manager_configure 0
+set_message_interval ATTITUDE 10
+set_message_interval ATTITUDE default
+
 gimbal 0 0
 gimbal -10 15
 gimbal -10 15 0
 gimbal 20 0 0
 gimbal 0 30 0
 gimbal 40 40 40
-gimbal -20 -30 0
+gimbal -40 0 0
 
 gimbal_rate -5 0
 gimbal_rate 0 8
@@ -570,12 +620,22 @@ gimbal_rate 0 8 lock
 - `switch_source sitl`：切换当前 active source 到 SITL 链路
 - `mode GUIDED` 会调用 `LinkManager.set_mode("GUIDED")`
 - `mode STABILIZE / LOITER / ALT_HOLD / LAND / RTL` 的行为与飞控当前模式映射一致
-- `arm` / `disarm` 会走一次性动作命令队列
+- `arm` / `arm throttle` / `disarm` 会走一次性动作命令队列
 - `takeoff <altitude_m>` 会发送 `MAV_CMD_NAV_TAKEOFF`
 - `land` 会发送 `MAV_CMD_NAV_LAND`
+- `condition_yaw` 会发送 `MAV_CMD_CONDITION_YAW`
+- `change_speed` 会发送 `MAV_CMD_DO_CHANGE_SPEED`
+- `set_home` 会发送 `MAV_CMD_DO_SET_HOME`
+- `global_goto` 会发送 `SET_POSITION_TARGET_GLOBAL_INT`
+- `local_pos` 会发送 `SET_POSITION_TARGET_LOCAL_NED`
+- `reposition` 会发送 `MAV_CMD_DO_REPOSITION`
 - `body_vel` 使用机体系 `BODY_NED` 发送速度命令
 - `yaw_rate` 使用机体系 `BODY_NED` 发送偏航角速度命令
 - `stop` 会发送全零速度和全零偏航角速度
+- `set_roi_location` 会发送 `MAV_CMD_DO_SET_ROI_LOCATION`
+- `roi_none` 会发送 `MAV_CMD_DO_SET_ROI_NONE`
+- `gimbal_manager_configure` 会发送 `MAV_CMD_DO_GIMBAL_MANAGER_CONFIGURE`
+- `set_message_interval` / `message_interval` 会发送 `MAV_CMD_SET_MESSAGE_INTERVAL`
 - `gimbal` 命令单位为角度 `deg`
 - `gimbal` 的格式是 `pitch yaw [roll]`
 - 如果不填 `roll`，默认按 `0.0`
@@ -861,6 +921,24 @@ manager.send_gimbal_rate(
 - 你应该改连 `5762` 或 `5763`
 - 但要确认对应的 `SERIALx_PROTOCOL` 确实是 MAVLink
 
+如果保留 MAVProxy，也可以连接 MAVProxy 输出的 UDP 端口，例如：
+
+```yaml
+sitl:
+  connection_type: udp
+  udp_mode: udpin
+  udp_host: 0.0.0.0
+  udp_port: 14550
+```
+
+典型 `sim_vehicle.py` 输出里会看到类似：
+
+```text
+mavproxy.py --out 127.0.0.1:14550 --master tcp:127.0.0.1:5760
+```
+
+这时 `5760` 是 MAVProxy 到 SITL 的 master 连接，不适合再让 telemetry_link 抢占。
+
 ### 12.3 为什么不能连 9002
 
 因为 `9002` 这类端口通常是 Gazebo 的 JSON 控制接口，不是 MAVLink 端口。
@@ -881,6 +959,54 @@ telemetry_link 只应连接 MAVLink 端口。
 - 自动切换
 - 双飞控同步
 - 双飞控同时控制
+
+### 12.5 为什么 UI 里的 `mode` 会在 GUIDED/STABILIZE 之间跳
+
+常见原因是同一条 MAVLink 链路里混入了 MAVProxy 或地面站的 `HEARTBEAT`。
+
+例如在 SITL + MAVProxy 场景下，链路里可能同时出现：
+
+```text
+src=1   autopilot=ArduPilot mode=GUIDED
+src=255 autopilot=Invalid  type=GCS custom_mode=0
+```
+
+如果把 GCS heartbeat 也当飞控 heartbeat 解码，`custom_mode=0` 会被 Copter 模式表误显示成 `STABILIZE`。
+
+当前实现已经过滤非 autopilot heartbeat，只用飞控 heartbeat 更新：
+
+- `mode`
+- `armed`
+- `control_allowed`
+- `last_heartbeat_time`
+
+### 12.6 为什么 UI 里的 `rel` 会在几米和几百米之间跳
+
+这是相对高度来源混用导致的典型现象。
+
+- `GLOBAL_POSITION_INT.relative_alt`：相对 home 的高度
+- `LOCAL_POSITION_NED.z`：local NED 下的高度，可推导为 `-z`
+- `VFR_HUD.alt`：高度/海拔语义，不等同于 relative altitude
+
+当前实现中：
+
+- `relative_altitude` 只由 `GLOBAL_POSITION_INT.relative_alt` 或 `LOCAL_POSITION_NED.z` 更新
+- `VFR_HUD.alt` 只更新 `altitude`
+
+因此 `rel` 应该稳定在相对高度附近，例如起飞 3 米后显示约 `3.0`，不会再被海拔高度覆盖。
+
+### 12.7 为什么会出现 connected/reconnecting 来回跳
+
+常见原因：
+
+- 连接到了没有飞控 heartbeat 的端口
+- `wait_heartbeat()` 超时
+- 链路里只有 GCS heartbeat，没有 autopilot heartbeat
+- TCP 端口可连接，但对应 `SERIALx_PROTOCOL` 不是 MAVLink
+
+当前实现要求必须收到有效 autopilot heartbeat 才会标记 connected。
+
+如果 heartbeat 超时，或目标 system id 仍是 `0`，会继续保持 reconnecting，而不会把无效连接伪装成 connected。
 
 ## 13. 当前边界
 

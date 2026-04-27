@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Callable
 
 from pymavlink import mavutil
@@ -54,14 +55,43 @@ class MavlinkClient:
         if self.master is None:
             raise RuntimeError("MAVLink client is not connected")
         self.logger.info("waiting heartbeat...")
-        self.master.wait_heartbeat(timeout=timeout)
-        self.target_system = int(self.master.target_system)
-        self.target_component = int(self.master.target_component)
+        deadline = time.time() + float(timeout)
+        heartbeat = None
+        while time.time() < deadline:
+            heartbeat = self.master.recv_match(type="HEARTBEAT", blocking=True, timeout=0.5)
+            if heartbeat is None:
+                continue
+            if self._is_autopilot_heartbeat(heartbeat):
+                break
+            self.logger.debug(
+                "ignore non-autopilot heartbeat src_system=%s src_component=%s type=%s autopilot=%s",
+                heartbeat.get_srcSystem(),
+                heartbeat.get_srcComponent(),
+                getattr(heartbeat, "type", None),
+                getattr(heartbeat, "autopilot", None),
+            )
+            heartbeat = None
+        if heartbeat is None:
+            raise TimeoutError(f"heartbeat timeout after {timeout:.1f}s")
+        self.target_system = int(heartbeat.get_srcSystem())
+        self.target_component = 0
+        self.master.target_system = self.target_system
+        self.master.target_component = self.target_component
+        if self.target_system <= 0:
+            raise TimeoutError(
+                f"invalid MAVLink target after heartbeat: "
+                f"target_system={self.target_system} target_component={self.target_component}"
+            )
         self.logger.info(
             "heartbeat received target_system=%s target_component=%s",
             self.target_system,
             self.target_component,
         )
+
+    def _is_autopilot_heartbeat(self, message) -> bool:
+        autopilot = int(getattr(message, "autopilot", mavutil.mavlink.MAV_AUTOPILOT_INVALID))
+        mav_type = int(getattr(message, "type", mavutil.mavlink.MAV_TYPE_GCS))
+        return autopilot != mavutil.mavlink.MAV_AUTOPILOT_INVALID and mav_type != mavutil.mavlink.MAV_TYPE_GCS
 
     def recv_message(self, timeout: float = 0.1):
         if self.master is None:
