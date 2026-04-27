@@ -226,11 +226,22 @@ class ControlInputAdapter:
         return (timestamp - self._stable_track_since) > self.config.stable_hold_s
 
     def _extract_target_size(self, fused: FusedState) -> tuple[float, bool]:
+        target_size = self._valid_positive(getattr(fused, "target_size", None))
+        if target_size is not None:
+            return target_size, True
+
         bbox_h = self._valid_positive(getattr(fused, "bbox_h", None))
         if bbox_h is not None:
+            image_height = self._valid_positive(getattr(fused, "image_height", None))
+            if image_height is not None:
+                return bbox_h / image_height, True
             return bbox_h, True
         bbox_area = self._valid_positive(getattr(fused, "bbox_area", None))
         if bbox_area is not None:
+            image_width = self._valid_positive(getattr(fused, "image_width", None))
+            image_height = self._valid_positive(getattr(fused, "image_height", None))
+            if image_width is not None and image_height is not None:
+                return math.sqrt(bbox_area / (image_width * image_height)), True
             return math.sqrt(bbox_area), True
         return 0.0, False
 

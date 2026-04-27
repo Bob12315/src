@@ -64,8 +64,8 @@ mode:
   max_gimbal_age_s: 0.3
   # 允许 approach 放行前的云台 yaw 对齐阈值，单位 rad
   yaw_align_thresh_rad: 0.35
-  # 进入 overhead 模式所需的最小目标尺度
-  overhead_entry_target_size_thresh: 0.30
+  # 进入 overhead 模式所需的最小目标尺度；普通接近测试时设高，避免切入 overhead
+  overhead_entry_target_size_thresh: 10.0
   # 进入 overhead 时期望的云台向下 pitch，单位 rad
   overhead_entry_pitch_rad: -1.35
   # overhead 进入时 pitch 允许偏差
@@ -197,17 +197,17 @@ approach:
   approach_task_mode: "APPROACH_TRACK"
   overhead_task_mode: "OVERHEAD_HOLD"
   # 期望目标尺度，越大表示希望飞得更近
-  target_size_ref: 0.35
+  target_size_ref: 0.8
   # 常规模式下前向速度比例增益
-  kp_vx: 1.0
+  kp_vx: 1.5
   # 常规模式下前向速度微分增益
   kd_vx: 0.0
   # 是否启用常规模式微分项
   use_derivative: false
   # 尺度误差 deadband
-  deadband_size: 0.02
+  deadband_size: 0.01
   # 最大前进速度，单位 m/s
-  max_forward_vx: 0.8
+  max_forward_vx: 1.2
   # 允许后退时的最大后退速度，单位 m/s
   max_backward_vx: 0.2
   # vx 方向符号，方向反了可改成 -1
@@ -235,7 +235,7 @@ approach:
 # 最终命令统一限幅与 slew rate 平滑参数
 shaper:
   # 最终输出允许的最大 vx
-  max_vx: 0.8
+  max_vx: 1.2
   # 最终输出允许的最大 vy
   max_vy: 1.0
   # 最终输出允许的最大 yaw_rate
@@ -245,7 +245,7 @@ shaper:
   # 最终输出允许的最大 gimbal pitch_rate
   max_gimbal_pitch_rate: 1.0
   # vx 每秒最大变化量
-  max_vx_rate: 1.0
+  max_vx_rate: 2.0
   # vy 每秒最大变化量
   max_vy_rate: 1.5
   # yaw_rate 每秒最大变化量

@@ -197,6 +197,9 @@ class YoloUdpReceiver(threading.Thread):
             cy=float(data.get("cy", 0.0)),
             w=float(data.get("w", 0.0)),
             h=float(data.get("h", 0.0)),
+            image_width=float(data.get("image_width", 0.0)),
+            image_height=float(data.get("image_height", 0.0)),
+            target_size=float(data.get("target_size", 0.0)),
             ex=float(data.get("ex", 0.0)),
             ey=float(data.get("ey", 0.0)),
             lost_count=int(data.get("lost_count", 0)),
@@ -366,6 +369,7 @@ def main() -> int:
                 if (now - last_print_time) >= print_sleep_sec:
                     logger.info(
                         "mode=%s task_mode=%s hold=%s enabled=(gimbal:%s body:%s approach:%s) control_allowed=%s target_valid=%s track_id=%s "
+                        "target_size=%.3f size_valid=%s approach_vx=%.3f shaped_vx=%.3f "
                         "ex=%.3f ey=%.3f gimbal_yaw=%.3f gimbal_pitch=%.3f "
                         "gimbal_rate=(%.3f,%.3f) shaped_rate=(%.3f,%.3f)",
                         mode.mode_name,
@@ -377,6 +381,10 @@ def main() -> int:
                         control_input.control_allowed,
                         control_input.target_valid,
                         control_input.track_id,
+                        control_input.target_size,
+                        control_input.target_size_valid,
+                        approach_cmd.vx_cmd,
+                        shaped.vx_cmd,
                         control_input.ex_cam,
                         control_input.ey_cam,
                         control_input.gimbal_yaw,

@@ -87,6 +87,7 @@ class TargetManager:
             ey=0.0,
             image_width=image_width,
             image_height=image_height,
+            target_size=0.0,
             lost_count=self.state.lost_count,
         )
 
@@ -178,5 +179,11 @@ class TargetManager:
             ey=normalize_error(track.cy, image_height),
             image_width=image_width,
             image_height=image_height,
+            target_size=self._target_size(track, image_width, image_height),
             lost_count=self.state.lost_count,
         )
+
+    def _target_size(self, track: Track, image_width: int, image_height: int) -> float:
+        width = max(1, int(image_width))
+        height = max(1, int(image_height))
+        return max(track.w / width, track.h / height)

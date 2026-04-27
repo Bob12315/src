@@ -21,6 +21,9 @@ class PerceptionTarget:
     cy: float = 0.0
     w: float = 0.0
     h: float = 0.0
+    image_width: float = 0.0
+    image_height: float = 0.0
+    target_size: float = 0.0
     ex: float = 0.0
     ey: float = 0.0
     lost_count: int = 0
@@ -42,6 +45,9 @@ class FusedState:
     bbox_w: float | None = None
     bbox_h: float | None = None
     bbox_area: float | None = None
+    image_width: float | None = None
+    image_height: float | None = None
+    target_size: float | None = None
     gimbal_valid: bool = False
     gimbal_yaw: float = 0.0
     gimbal_pitch: float = 0.0

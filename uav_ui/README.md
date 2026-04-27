@@ -65,7 +65,7 @@ land
 stop
 mode GUIDED
 takeoff 5
-body_vel 0.5 0 0
+body_vel 5 0 0
 yaw_rate 0.2
 gimbal -20 0
 gimbal_rate 0 20

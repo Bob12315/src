@@ -42,6 +42,8 @@ class Annotator:
             f"state: {current_target.tracking_state}",
             f"locked_track_id: {locked_track_id if locked_track_id is not None else -1}",
             f"lost_count: {current_target.lost_count}",
+            f"bbox: {current_target.w:.0f}x{current_target.h:.0f}",
+            f"target_size: {current_target.target_size:.3f}",
             f"ex: {current_target.ex:.3f}",
             f"ey: {current_target.ey:.3f}",
         ]

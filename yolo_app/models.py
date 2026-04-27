@@ -54,6 +54,7 @@ class CurrentTarget:
     ey: float
     image_width: int
     image_height: int
+    target_size: float
     lost_count: int
 
     def to_dict(self) -> dict[str, Any]:
