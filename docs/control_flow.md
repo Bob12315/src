@@ -124,7 +124,8 @@ raw_command, mode_status = mode.update(inputs)
 
 `OVERHEAD_HOLD`：
 
-- gimbal 固定向下。
+- gimbal 进入模式后发送一次性 pitch 角度目标到正下方，yaw 保持当前角度。
+- gimbal 到位后不再输出云台控制。
 - `ex_cam -> vy`
 - `ey_cam -> vx`
 
@@ -163,6 +164,12 @@ gimbal 通道：
 LinkManager.send_gimbal_rate(...)
 ```
 
+gimbal angle 动作通道：
+
+```python
+LinkManager.send_gimbal_angle(...)
+```
+
 如果 `send_commands=false`，只打印 dry-run 日志，不发送。
 
 ## 12. telemetry_link 发送
@@ -170,6 +177,7 @@ LinkManager.send_gimbal_rate(...)
 `CommandSender` 从队列取命令并发送：
 
 - `ControlCommand` -> `SET_POSITION_TARGET_LOCAL_NED`
+- `ActionCommand(GIMBAL_ANGLE)` -> `MAV_CMD_DO_MOUNT_CONTROL`
 - `GimbalRateCommand` -> `MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW`
 - `ActionCommand` -> `COMMAND_LONG` 或 `COMMAND_INT`
 

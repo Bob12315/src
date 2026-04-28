@@ -31,7 +31,7 @@ def _inputs(**overrides) -> FlightModeInput:
         target_stable=True,
         target_size=0.4,
         target_size_valid=True,
-        gimbal_pitch=1.35,
+        gimbal_pitch=-1.5707963267948966,
         gimbal_yaw=0.0,
     )
     data.update(overrides)

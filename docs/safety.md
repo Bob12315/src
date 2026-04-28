@@ -81,12 +81,11 @@ python -m app.main --connect-telemetry --send-commands true
 - gimbal 控制可不要求 gimbal fresh。
 - body/approach 默认要求 gimbal fresh。
 
-实机前确认 `config/app.yaml` 中：
+实机前确认对应 mode gating 配置保持保守，默认要求：
 
 ```yaml
-mission:
-  require_gimbal_fresh_for_body: true
-  require_gimbal_fresh_for_approach: true
+require_gimbal_fresh_for_body: true
+require_gimbal_fresh_for_approach: true
 ```
 
 ## 实机前 checklist

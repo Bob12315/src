@@ -167,10 +167,10 @@ FlightMode.update()
 
 职责：
 
-- `app.yaml`：运行时、mission、executor。
+- `app.yaml`：运行时、服务开关、executor。
+- `mission.yaml`：任务初始模式、模式切换条件、恢复策略。
 - `flight_modes.yaml`：input adapter、各控制器参数、shaper。
 - `telemetry.yaml`：MAVLink 连接和消息频率。
-- `debug.yaml`：强制模式和通道覆盖。
 
 禁止事项：
 

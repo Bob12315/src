@@ -55,9 +55,11 @@ class FlightCommand:
     yaw_rate_cmd: float = 0.0
     gimbal_yaw_rate_cmd: float = 0.0
     gimbal_pitch_rate_cmd: float = 0.0
+    gimbal_yaw_angle_cmd: float | None = None
+    gimbal_pitch_angle_cmd: float | None = None
     enable_body: bool = False
     enable_gimbal: bool = False
+    enable_gimbal_angle: bool = False
     enable_approach: bool = False
     active: bool = False
     valid: bool = False
-

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 @dataclass(slots=True)
 class OverheadGimbalConfig:
-    downward_pitch_rad: float = 1.35
+    downward_pitch_rad: float = -1.5707963267948966
     deadband_yaw: float = 0.02
     deadband_pitch: float = 0.03
     kp_yaw: float = 0.0

@@ -11,6 +11,10 @@ from flight_modes.overhead_hold.config import OverheadGimbalConfig
 class OverheadGimbalCommand:
     yaw_rate_cmd: float = 0.0
     pitch_rate_cmd: float = 0.0
+    yaw_angle_cmd: float | None = None
+    pitch_angle_cmd: float | None = None
+    angle_active: bool = False
+    pitch_aligned: bool = False
     active: bool = False
     valid: bool = False
 
@@ -18,46 +22,43 @@ class OverheadGimbalCommand:
 @dataclass(slots=True)
 class OverheadGimbalController:
     config: OverheadGimbalConfig = field(default_factory=OverheadGimbalConfig)
+    _pitch_aligned: bool = field(init=False, default=False)
+    _angle_command_sent: bool = field(init=False, default=False)
 
     def reset(self) -> None:
-        pass
+        self._pitch_aligned = False
+        self._angle_command_sent = False
 
     def update(self, inputs: FlightModeInput, enabled: bool = True) -> OverheadGimbalCommand:
         if not enabled:
+            self.reset()
             return self._make_inactive_command(valid=False)
         if not self._validate_input(inputs):
+            self.reset()
             return self._make_inactive_command(valid=False)
 
-        yaw_error = self._apply_deadband(
-            value=-float(inputs.gimbal_yaw),
-            threshold=self.config.deadband_yaw,
-        )
-        pitch_error = self._apply_deadband(
-            value=self.config.downward_pitch_rad - float(inputs.gimbal_pitch),
-            threshold=self.config.deadband_pitch,
-        )
+        pitch_error_raw = self.config.downward_pitch_rad - float(inputs.gimbal_pitch)
+        if abs(pitch_error_raw) <= self.config.deadband_pitch:
+            self._pitch_aligned = True
 
-        yaw_rate_cmd = self.config.yaw_sign * self.config.kp_yaw * yaw_error
-        pitch_rate_cmd = self.config.pitch_sign * self.config.kp_pitch * pitch_error
+        if self._pitch_aligned:
+            return OverheadGimbalCommand(pitch_aligned=True, active=False, valid=True)
 
-        yaw_rate_cmd = self._clamp(
-            yaw_rate_cmd,
-            -self.config.max_yaw_rate,
-            self.config.max_yaw_rate,
-        )
-        pitch_rate_cmd = self._clamp(
-            pitch_rate_cmd,
-            -self.config.max_pitch_rate,
-            self.config.max_pitch_rate,
-        )
+        if not self._angle_command_sent:
+            self._angle_command_sent = True
+            return OverheadGimbalCommand(
+                yaw_angle_cmd=float(inputs.gimbal_yaw),
+                pitch_angle_cmd=self.config.downward_pitch_rad,
+                angle_active=True,
+                pitch_aligned=False,
+                active=True,
+                valid=True,
+            )
 
         return OverheadGimbalCommand(
-            yaw_rate_cmd=yaw_rate_cmd,
-            pitch_rate_cmd=pitch_rate_cmd,
-            active=not (
-                math.isclose(yaw_rate_cmd, 0.0, abs_tol=1e-9)
-                and math.isclose(pitch_rate_cmd, 0.0, abs_tol=1e-9)
-            ),
+            angle_active=False,
+            pitch_aligned=False,
+            active=False,
             valid=True,
         )
 
@@ -83,5 +84,9 @@ class OverheadGimbalController:
         return min(upper, max(lower, value))
 
     def _make_inactive_command(self, valid: bool) -> OverheadGimbalCommand:
-        return OverheadGimbalCommand(active=False, valid=valid)
-
+        return OverheadGimbalCommand(
+            angle_active=False,
+            pitch_aligned=self._pitch_aligned,
+            active=False,
+            valid=valid,
+        )

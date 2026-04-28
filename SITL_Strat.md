@@ -11,3 +11,6 @@ conda activate yolo
 python3 uav_project/src/yolo_app/main.py
 
 python3 uav_project/src/control/main.py 
+
+cd uav_project/src/
+python3 -m app.main 

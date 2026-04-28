@@ -42,7 +42,7 @@
 
 - `app/mission_manager.py`
 - `app/mode_registry.py`
-- `config/app.yaml` 的 `mission` 部分
+- `config/mission.yaml`
 - `tests/test_mission_manager.py`
 
 不应该碰：
@@ -138,7 +138,7 @@
 2. 实现 `FlightMode` 接口。
 3. 在 `app/mode_registry.py` 注册。
 4. 在 `app/mission_manager.py` 增加进入/退出条件。
-5. 在 `config/flight_modes.yaml` 和 `config/app.yaml` 加配置。
+5. 在 `config/flight_modes.yaml`、`config/mission.yaml` 和必要的 app 配置中加配置。
 6. 增加 `tests/test_<new_mode>.py`。
 7. 更新 [docs/interfaces.md](interfaces.md) 和 [docs/architecture.md](architecture.md)。
 

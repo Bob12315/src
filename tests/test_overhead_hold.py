@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 from flight_modes.common.types import FlightModeInput
-from flight_modes.overhead_hold import OverheadHoldMode
+from flight_modes.overhead_hold import (
+    OverheadBodyConfig,
+    OverheadHoldConfig,
+    OverheadHoldMode,
+)
 
 
 def _inputs(**overrides) -> FlightModeInput:
@@ -35,10 +39,39 @@ def test_overhead_hold_maps_overhead_errors_to_raw_command() -> None:
     command, status = OverheadHoldMode().update(_inputs())
 
     assert status.mode_name == "OVERHEAD_HOLD"
-    assert command.gimbal_pitch_rate_cmd == pytest.approx(-0.525)
+    assert command.enable_gimbal_angle is True
+    assert command.gimbal_pitch_angle_cmd == pytest.approx(-1.5707963267948966)
+    assert command.gimbal_yaw_angle_cmd == pytest.approx(0.1)
+    assert command.gimbal_pitch_rate_cmd == pytest.approx(0.0)
+    assert command.gimbal_yaw_rate_cmd == pytest.approx(0.0)
+    assert command.yaw_rate_cmd == pytest.approx(0.0)
+    assert command.vy_cmd == pytest.approx(0.06)
+    assert command.vx_cmd == pytest.approx(0.05)
+
+
+def test_overhead_hold_stops_gimbal_after_pitch_reaches_downward() -> None:
+    mode = OverheadHoldMode()
+
+    command, status = mode.update(_inputs(gimbal_pitch=-1.5707963267948966))
+
+    assert status.detail["gimbal_pitch_aligned"] is True
+    assert command.enable_gimbal is False
+    assert command.enable_gimbal_angle is False
+    assert command.gimbal_pitch_angle_cmd is None
+    assert command.gimbal_pitch_rate_cmd == pytest.approx(0.0)
     assert command.gimbal_yaw_rate_cmd == pytest.approx(0.0)
     assert command.vy_cmd == pytest.approx(0.06)
     assert command.vx_cmd == pytest.approx(0.05)
+
+
+def test_overhead_hold_never_commands_body_yaw() -> None:
+    mode = OverheadHoldMode(
+        config=OverheadHoldConfig(body=OverheadBodyConfig(kp_yaw=10.0))
+    )
+
+    command, _ = mode.update(_inputs(gimbal_yaw=0.5))
+
+    assert command.yaw_rate_cmd == pytest.approx(0.0)
 
 
 def test_overhead_hold_zeroes_when_target_invalid() -> None:

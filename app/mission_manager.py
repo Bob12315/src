@@ -20,7 +20,7 @@ class MissionMode(str, Enum):
 class MissionManagerConfig:
     initial_mode: str = MissionMode.APPROACH_TRACK.value
     overhead_entry_target_size_thresh: float = 0.30
-    overhead_entry_pitch_rad: float = 1.35
+    overhead_entry_pitch_rad: float = -1.5707963267948966
     overhead_entry_pitch_tol_rad: float = 0.20
     overhead_entry_yaw_tol_rad: float = 0.15
     overhead_entry_hold_s: float = 0.5

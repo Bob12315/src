@@ -107,8 +107,11 @@
 - `yaw_rate_cmd: float`：机体偏航角速度，`rad/s`。
 - `gimbal_yaw_rate_cmd: float`：云台 yaw 角速度，`rad/s`。
 - `gimbal_pitch_rate_cmd: float`：云台 pitch 角速度，`rad/s`。
+- `gimbal_yaw_angle_cmd: float | None`：一次性云台 yaw 角度目标，`rad`；由 executor 转成 `deg` 后交给 `LinkManager.send_gimbal_angle()`。
+- `gimbal_pitch_angle_cmd: float | None`：一次性云台 pitch 角度目标，`rad`；由 executor 转成 `deg` 后交给 `LinkManager.send_gimbal_angle()`。
 - `enable_body: bool`：是否允许 body 通道。
 - `enable_gimbal: bool`：是否允许 gimbal 通道。
+- `enable_gimbal_angle: bool`：是否发送一次性云台角度动作命令。
 - `enable_approach: bool`：是否允许 approach/vx 通道。
 - `active: bool`：命令是否有活动通道。
 - `valid: bool`：命令是否有效。

@@ -154,6 +154,7 @@ from flight_modes.overhead_hold.config import (
     OverheadGimbalConfig,
     OverheadHoldConfig,
 )
+from app.mission_manager import MissionManagerConfig
 from telemetry_link.config import EndpointConfig, TelemetryConfig
 from uav_ui.yolo_command_client import YoloCommandConfig
 
@@ -184,6 +185,7 @@ class AppConfig:
     telemetry: TelemetryConfig
     yolo_command: YoloCommandConfig
     input_adapter: InputAdapterConfig
+    mission: MissionManagerConfig
     approach_track: ApproachTrackConfig
     overhead_hold: OverheadHoldConfig
     shaper: CommandShaperConfig
@@ -198,11 +200,11 @@ class AppConfig:
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Refactored UAV control app runtime")
     parser.add_argument("--app-config", default=str(ROOT_DIR / "config" / "app.yaml"))
+    parser.add_argument("--mission-config", default=str(ROOT_DIR / "config" / "mission.yaml"))
     parser.add_argument(
         "--flight-modes-config",
         default=str(ROOT_DIR / "config" / "flight_modes.yaml"),
     )
-    parser.add_argument("--debug-config", default=str(ROOT_DIR / "config" / "debug.yaml"))
     parser.add_argument(
         "--control-config",
         default=None,
@@ -230,7 +232,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--start-auto-control",
         action="store_true",
-        help="Start controllers and command sending from config values.",
+        help="Start controllers; command sending still follows --send-commands/config executor.send_commands.",
     )
     parser.add_argument(
         "--connect-telemetry",
@@ -257,21 +259,29 @@ def load_app_config(args: argparse.Namespace) -> AppConfig:
         return _load_legacy_app_config(args)
 
     app_data = _load_yaml(args.app_config)
+    mission_file_data = _load_yaml_if_exists(args.mission_config)
     flight_data = _load_yaml(args.flight_modes_config)
-    debug_data = _load_yaml(args.debug_config)
     telemetry_cfg = load_telemetry_config(args.telemetry_config)
     yolo_command_cfg = load_yolo_command_config(args.yolo_config)
 
     runtime_data = _section(app_data, "runtime")
-    mission_data = _section(app_data, "mission")
+    services_data = _section(app_data, "services")
+    mission_data = _normalize_mission_config(
+        mission_file_data if mission_file_data else _section(app_data, "mission")
+    )
+    recovery_data = _normalize_recovery_config(
+        mission_file_data if mission_file_data else app_data,
+        runtime_data,
+    )
     executor_data = _section(app_data, "executor")
 
     input_adapter_cfg = _build_input_adapter_config(_section(flight_data, "input_adapter"))
+    mission_cfg = _build_mission_manager_config(mission_data)
     approach_track_cfg = _build_approach_track_config(flight_data, mission_data)
     overhead_hold_cfg = _build_overhead_hold_config(flight_data, mission_data)
     shaper_cfg = _build_shaper_config(_section(flight_data, "shaper"))
     executor_cfg = _build_executor_config(executor_data)
-    debug_cfg = _build_debug_config(debug_data)
+    debug_cfg = FlightModeDebugConfig()
 
     send_commands = executor_cfg.send_commands
     if args.send_commands is not None:
@@ -281,9 +291,19 @@ def load_app_config(args: argparse.Namespace) -> AppConfig:
     if args.force_mode:
         debug_cfg.force_mode = args.force_mode
 
-    connect_telemetry = _cfg_bool(runtime_data, "connect_telemetry", False)
+    connect_telemetry = _cfg_bool(
+        services_data,
+        "connect_telemetry",
+        _cfg_bool(runtime_data, "connect_telemetry", False),
+        "services",
+    )
     connect_telemetry = bool(connect_telemetry or args.connect_telemetry or args.start_auto_control)
-    ui_enabled = _cfg_bool(runtime_data, "ui_enabled", telemetry_cfg.ui_enabled)
+    ui_enabled = _cfg_bool(
+        services_data,
+        "ui_enabled",
+        _cfg_bool(runtime_data, "ui_enabled", telemetry_cfg.ui_enabled),
+        "services",
+    )
     if args.ui_enabled is not None:
         ui_enabled = bool(args.ui_enabled)
 
@@ -316,27 +336,37 @@ def load_app_config(args: argparse.Namespace) -> AppConfig:
         start_yolo_udp=(
             False
             if args.no_yolo_udp
-            else _cfg_bool(runtime_data, "start_yolo_udp", True)
+            else _cfg_bool(
+                services_data,
+                "start_yolo_udp",
+                _cfg_bool(runtime_data, "start_yolo_udp", True),
+                "services",
+            )
         ),
         run_seconds=args.run_seconds if args.run_seconds is not None else runtime_data.get("run_seconds"),
         lost_target_recenter_enabled=_cfg_bool(
-            runtime_data,
+            recovery_data,
             "lost_target_recenter_enabled",
             True,
+            "recovery.lost_target",
         ),
         lost_target_recenter_timeout_sec=float(
-            runtime_data.get("lost_target_recenter_timeout_sec", 10.0)
+            recovery_data.get("lost_target_recenter_timeout_sec", 10.0)
         ),
         lost_target_recenter_pitch_deg=float(
-            runtime_data.get("lost_target_recenter_pitch_deg", 0.0)
+            recovery_data.get("lost_target_recenter_pitch_deg", 0.0)
         ),
-        lost_target_recenter_yaw_deg=float(runtime_data.get("lost_target_recenter_yaw_deg", 0.0)),
+        lost_target_recenter_yaw_deg=float(
+            recovery_data.get("lost_target_recenter_yaw_deg", 0.0)
+        ),
     )
     if runtime_cfg.run_seconds is not None:
         runtime_cfg.run_seconds = float(runtime_cfg.run_seconds)
 
+    runtime_compat_data = dict(runtime_data)
+    runtime_compat_data.update(recovery_data)
     control_cfg = _build_control_compat(
-        runtime_data,
+        runtime_compat_data,
         mission_data,
         flight_data,
         executor_cfg,
@@ -349,23 +379,15 @@ def load_app_config(args: argparse.Namespace) -> AppConfig:
         telemetry=telemetry_cfg,
         yolo_command=yolo_command_cfg,
         input_adapter=input_adapter_cfg,
+        mission=mission_cfg,
         approach_track=approach_track_cfg,
         overhead_hold=overhead_hold_cfg,
         shaper=shaper_cfg,
         executor=executor_cfg,
         debug=debug_cfg,
-        start_gimbal=bool(
-            _cfg_bool(runtime_data, "enable_gimbal_controller", True)
-            and args.start_auto_control
-        ),
-        start_body=bool(
-            _cfg_bool(runtime_data, "enable_body_controller", True)
-            and args.start_auto_control
-        ),
-        start_approach=bool(
-            _cfg_bool(runtime_data, "enable_approach_controller", True)
-            and args.start_auto_control
-        ),
+        start_gimbal=bool(args.start_auto_control),
+        start_body=bool(args.start_auto_control),
+        start_approach=bool(args.start_auto_control),
         start_send_commands=bool(send_commands),
     )
 
@@ -452,9 +474,11 @@ def _build_approach_track_config(
     flight_data: dict[str, Any],
     mission_data: dict[str, Any],
 ) -> ApproachTrackConfig:
-    gimbal = _section(flight_data, "gimbal")
-    body = _section(flight_data, "body")
-    approach = _section(flight_data, "approach")
+    mode = _section(flight_data, "approach_track")
+    gates = _section(mode, "gates") if mode else mission_data
+    gimbal = _section(mode, "gimbal") if mode else _section(flight_data, "gimbal")
+    body = _section(mode, "body") if mode else _section(flight_data, "body")
+    approach = _section(mode, "forward") if mode else _section(flight_data, "approach")
     return ApproachTrackConfig(
         gimbal=ApproachGimbalConfig(
             kp_yaw=float(gimbal.get("kp_yaw", 3.2)),
@@ -509,42 +533,42 @@ def _build_approach_track_config(
         max_drone_age_s=float(mission_data.get("max_drone_age_s", 0.3)),
         max_gimbal_age_s=float(mission_data.get("max_gimbal_age_s", 0.3)),
         require_target_locked_for_body=_cfg_bool(
-            mission_data,
+            gates,
             "require_target_locked_for_body",
             True,
-            "mission",
+            "approach_track.gates",
         ),
         require_target_stable_for_approach=_cfg_bool(
-            mission_data,
+            gates,
             "require_target_stable_for_approach",
             True,
-            "mission",
+            "approach_track.gates",
         ),
         require_yaw_aligned_for_approach=_cfg_bool(
-            mission_data,
+            gates,
             "require_yaw_aligned_for_approach",
             True,
-            "mission",
+            "approach_track.gates",
         ),
         require_gimbal_fresh_for_gimbal=_cfg_bool(
-            mission_data,
+            gates,
             "require_gimbal_fresh_for_gimbal",
             False,
-            "mission",
+            "approach_track.gates",
         ),
         require_gimbal_fresh_for_body=_cfg_bool(
-            mission_data,
+            gates,
             "require_gimbal_fresh_for_body",
             True,
-            "mission",
+            "approach_track.gates",
         ),
         require_gimbal_fresh_for_approach=_cfg_bool(
-            mission_data,
+            gates,
             "require_gimbal_fresh_for_approach",
             True,
-            "mission",
+            "approach_track.gates",
         ),
-        yaw_align_thresh_rad=float(mission_data.get("yaw_align_thresh_rad", 0.35)),
+        yaw_align_thresh_rad=float(gates.get("yaw_align_thresh_rad", 0.35)),
     )
 
 
@@ -552,33 +576,45 @@ def _build_overhead_hold_config(
     flight_data: dict[str, Any],
     mission_data: dict[str, Any],
 ) -> OverheadHoldConfig:
-    gimbal = _section(flight_data, "gimbal")
-    body = _section(flight_data, "body")
-    approach = _section(flight_data, "approach")
+    mode = _section(flight_data, "overhead_hold")
+    gates = _section(mode, "gates") if mode else mission_data
+    gimbal = _section(mode, "gimbal") if mode else _section(flight_data, "gimbal")
+    body = _section(mode, "lateral") if mode else _section(flight_data, "body")
+    approach = _section(mode, "longitudinal") if mode else _section(flight_data, "approach")
     return OverheadHoldConfig(
         gimbal=OverheadGimbalConfig(
-            downward_pitch_rad=float(gimbal.get("overhead_downward_pitch_rad", 1.35)),
-            deadband_yaw=float(gimbal.get("overhead_deadband_yaw", 0.02)),
-            deadband_pitch=float(gimbal.get("overhead_deadband_pitch", 0.03)),
-            kp_yaw=float(gimbal.get("overhead_kp_yaw", 0.0)),
-            kp_pitch=float(gimbal.get("overhead_kp_pitch", 1.5)),
-            max_yaw_rate=float(gimbal.get("overhead_max_yaw_rate", 0.3)),
-            max_pitch_rate=float(gimbal.get("overhead_max_pitch_rate", 0.8)),
+            downward_pitch_rad=float(
+                gimbal.get(
+                    "downward_pitch_rad",
+                    gimbal.get("overhead_downward_pitch_rad", -1.5707963267948966),
+                )
+            ),
+            deadband_yaw=float(gimbal.get("deadband_yaw", gimbal.get("overhead_deadband_yaw", 0.02))),
+            deadband_pitch=float(
+                gimbal.get(
+                    "pitch_tolerance_rad",
+                    gimbal.get("overhead_deadband_pitch", 0.03),
+                )
+            ),
+            kp_yaw=float(gimbal.get("kp_yaw", gimbal.get("overhead_kp_yaw", 0.0))),
+            kp_pitch=float(gimbal.get("kp_pitch", gimbal.get("overhead_kp_pitch", 1.5))),
+            max_yaw_rate=float(gimbal.get("max_yaw_rate", gimbal.get("overhead_max_yaw_rate", 0.3))),
+            max_pitch_rate=float(gimbal.get("max_pitch_rate", gimbal.get("overhead_max_pitch_rate", 0.8))),
             yaw_sign=float(gimbal.get("yaw_sign", 1.0)),
             pitch_sign=float(gimbal.get("pitch_sign", -1.0)),
         ),
         body=OverheadBodyConfig(
-            kp_vy=float(body.get("overhead_kp_vy", 1.0)),
-            kd_vy=float(body.get("overhead_kd_vy", 0.0)),
+            kp_vy=float(body.get("kp_vy", body.get("overhead_kp_vy", 1.0))),
+            kd_vy=float(body.get("kd_vy", body.get("overhead_kd_vy", 0.0))),
             use_derivative_vy=_cfg_bool(
                 body,
-                "overhead_use_derivative_vy",
+                "use_derivative" if "use_derivative" in body else "overhead_use_derivative_vy",
                 False,
-                "body",
+                "overhead_hold.lateral",
             ),
-            deadband_ex_cam=float(body.get("overhead_deadband_ex_cam", 0.02)),
-            kp_yaw=float(body.get("overhead_kp_yaw", 0.0)),
-            deadband_yaw=float(body.get("overhead_deadband_yaw", 0.05)),
+            deadband_ex_cam=float(body.get("deadband_ex_cam", body.get("overhead_deadband_ex_cam", 0.02))),
+            kp_yaw=float(body.get("kp_yaw", body.get("overhead_kp_yaw", 0.0))),
+            deadband_yaw=float(body.get("deadband_yaw", body.get("overhead_deadband_yaw", 0.05))),
             max_vy=float(body.get("max_vy", 1.0)),
             max_yaw_rate=float(body.get("max_yaw_rate", 1.0)),
             vy_sign=float(body.get("vy_sign", 1.0)),
@@ -586,21 +622,23 @@ def _build_overhead_hold_config(
             dt_min=float(body.get("dt_min", 1e-3)),
         ),
         approach=OverheadApproachConfig(
-            kp_vx=float(approach.get("overhead_kp_vx", 1.0)),
-            kd_vx=float(approach.get("overhead_kd_vx", 0.0)),
+            kp_vx=float(approach.get("kp_vx", approach.get("overhead_kp_vx", 1.0))),
+            kd_vx=float(approach.get("kd_vx", approach.get("overhead_kd_vx", 0.0))),
             use_derivative=_cfg_bool(
                 approach,
-                "overhead_use_derivative",
+                "use_derivative" if "use_derivative" in approach else "overhead_use_derivative",
                 False,
-                "approach",
+                "overhead_hold.longitudinal",
             ),
-            deadband_ey_cam=float(approach.get("overhead_deadband_ey_cam", 0.02)),
-            vx_sign=float(approach.get("overhead_vx_sign", 1.0)),
+            deadband_ey_cam=float(
+                approach.get("deadband_ey_cam", approach.get("overhead_deadband_ey_cam", 0.02))
+            ),
+            vx_sign=float(approach.get("vx_sign", approach.get("overhead_vx_sign", 1.0))),
             allow_backward=_cfg_bool(
                 approach,
-                "overhead_allow_backward",
+                "allow_backward" if "allow_backward" in approach else "overhead_allow_backward",
                 False,
-                "approach",
+                "overhead_hold.longitudinal",
             ),
             max_forward_vx=float(approach.get("max_forward_vx", 0.8)),
             max_backward_vx=float(approach.get("max_backward_vx", 0.2)),
@@ -610,22 +648,22 @@ def _build_overhead_hold_config(
         max_drone_age_s=float(mission_data.get("max_drone_age_s", 0.3)),
         max_gimbal_age_s=float(mission_data.get("max_gimbal_age_s", 0.3)),
         require_gimbal_fresh_for_gimbal=_cfg_bool(
-            mission_data,
+            gates,
             "require_gimbal_fresh_for_gimbal",
             False,
-            "mission",
+            "overhead_hold.gates",
         ),
         require_gimbal_fresh_for_body=_cfg_bool(
-            mission_data,
+            gates,
             "require_gimbal_fresh_for_body",
             True,
-            "mission",
+            "overhead_hold.gates",
         ),
         require_gimbal_fresh_for_approach=_cfg_bool(
-            mission_data,
+            gates,
             "require_gimbal_fresh_for_approach",
             True,
-            "mission",
+            "overhead_hold.gates",
         ),
     )
 
@@ -663,13 +701,22 @@ def _build_executor_config(data: dict[str, Any]) -> FlightCommandExecutorConfig:
     )
 
 
-def _build_debug_config(data: dict[str, Any]) -> FlightModeDebugConfig:
-    return FlightModeDebugConfig(
-        force_mode=data.get("force_mode"),
-        enable_gimbal=_optional_bool(data.get("enable_gimbal"), "debug.enable_gimbal"),
-        enable_body=_optional_bool(data.get("enable_body"), "debug.enable_body"),
-        enable_approach=_optional_bool(data.get("enable_approach"), "debug.enable_approach"),
-        dry_run=_cfg_bool(data, "dry_run", True, "debug"),
+def _build_mission_manager_config(data: dict[str, Any]) -> MissionManagerConfig:
+    return MissionManagerConfig(
+        initial_mode=str(data.get("initial_mode", "APPROACH_TRACK")),
+        overhead_entry_target_size_thresh=float(
+            data.get("overhead_entry_target_size_thresh", 0.30)
+        ),
+        overhead_entry_pitch_rad=float(
+            data.get("overhead_entry_pitch_rad", -1.5707963267948966)
+        ),
+        overhead_entry_pitch_tol_rad=float(data.get("overhead_entry_pitch_tol_rad", 0.20)),
+        overhead_entry_yaw_tol_rad=float(data.get("overhead_entry_yaw_tol_rad", 0.15)),
+        overhead_entry_hold_s=float(data.get("overhead_entry_hold_s", 0.5)),
+        overhead_exit_target_size_drop=float(
+            data.get("overhead_exit_target_size_drop", 0.06)
+        ),
+        auto_switch_enabled=_cfg_bool(data, "auto_switch_enabled", True, "mission"),
     )
 
 
@@ -680,9 +727,14 @@ def _build_control_compat(
     executor: FlightCommandExecutorConfig,
 ) -> ControlConfig:
     input_adapter = _section(flight, "input_adapter")
-    gimbal = _section(flight, "gimbal")
-    body = _section(flight, "body")
-    approach = _section(flight, "approach")
+    approach_track = _section(flight, "approach_track")
+    gimbal = _section(approach_track, "gimbal") if approach_track else _section(flight, "gimbal")
+    body = _section(approach_track, "body") if approach_track else _section(flight, "body")
+    approach = (
+        _section(approach_track, "forward")
+        if approach_track
+        else _section(flight, "approach")
+    )
     shaper = _section(flight, "shaper")
     return ControlConfig(
         runtime=ControlRuntimeConfig(
@@ -706,7 +758,9 @@ def _build_control_compat(
             overhead_entry_target_size_thresh=float(
                 mission.get("overhead_entry_target_size_thresh", 0.30)
             ),
-            overhead_entry_pitch_rad=float(mission.get("overhead_entry_pitch_rad", 1.35)),
+            overhead_entry_pitch_rad=float(
+                mission.get("overhead_entry_pitch_rad", -1.5707963267948966)
+            ),
             overhead_entry_pitch_tol_rad=float(mission.get("overhead_entry_pitch_tol_rad", 0.20)),
             overhead_entry_yaw_tol_rad=float(mission.get("overhead_entry_yaw_tol_rad", 0.15)),
             overhead_entry_hold_s=float(mission.get("overhead_entry_hold_s", 0.5)),
@@ -758,7 +812,9 @@ def _build_control_compat(
             kd_yaw=float(gimbal.get("kd_yaw", 0.18)),
             kd_pitch=float(gimbal.get("kd_pitch", 0.12)),
             use_derivative=_cfg_bool(gimbal, "use_derivative", False, "gimbal"),
-            overhead_downward_pitch_rad=float(gimbal.get("overhead_downward_pitch_rad", 1.35)),
+            overhead_downward_pitch_rad=float(
+                gimbal.get("overhead_downward_pitch_rad", -1.5707963267948966)
+            ),
             lost_target_recenter_enabled=_cfg_bool(
                 runtime,
                 "lost_target_recenter_enabled",
@@ -851,6 +907,14 @@ def _load_legacy_app_config(args: argparse.Namespace) -> AppConfig:
         telemetry=telemetry_cfg,
         yolo_command=yolo_command_cfg,
         input_adapter=InputAdapterConfig(**asdict(control_cfg.input_adapter)),
+        mission=MissionManagerConfig(
+            overhead_entry_target_size_thresh=control_cfg.mode.overhead_entry_target_size_thresh,
+            overhead_entry_pitch_rad=control_cfg.mode.overhead_entry_pitch_rad,
+            overhead_entry_pitch_tol_rad=control_cfg.mode.overhead_entry_pitch_tol_rad,
+            overhead_entry_yaw_tol_rad=control_cfg.mode.overhead_entry_yaw_tol_rad,
+            overhead_entry_hold_s=control_cfg.mode.overhead_entry_hold_s,
+            overhead_exit_target_size_drop=control_cfg.mode.overhead_exit_target_size_drop,
+        ),
         approach_track=_build_approach_track_config_from_control(control_cfg),
         overhead_hold=_build_overhead_hold_config_from_control(control_cfg),
         shaper=CommandShaperConfig(
@@ -884,6 +948,95 @@ def _load_yaml(path: str) -> dict[str, Any]:
     return data
 
 
+def _load_yaml_if_exists(path: str) -> dict[str, Any]:
+    if not Path(path).exists():
+        return {}
+    return _load_yaml(path)
+
+
+def _normalize_mission_config(data: dict[str, Any]) -> dict[str, Any]:
+    if "freshness" not in data and "transitions" not in data:
+        return dict(data)
+
+    freshness = _section(data, "freshness")
+    transitions = _section(data, "transitions")
+    enter_overhead = _section(transitions, "approach_track_to_overhead_hold")
+    exit_overhead = _section(transitions, "overhead_hold_to_approach_track")
+
+    normalized = {
+        "initial_mode": data.get("initial_mode", "APPROACH_TRACK"),
+        "auto_switch_enabled": data.get("auto_switch_enabled", True),
+        "max_vision_age_s": freshness.get("max_vision_age_s", 0.3),
+        "max_drone_age_s": freshness.get("max_drone_age_s", 0.3),
+        "max_gimbal_age_s": freshness.get("max_gimbal_age_s", 0.3),
+        "overhead_entry_target_size_thresh": enter_overhead.get(
+            "target_size_thresh",
+            0.30,
+        ),
+        "overhead_entry_pitch_rad": enter_overhead.get(
+            "gimbal_pitch_rad",
+            -1.5707963267948966,
+        ),
+        "overhead_entry_pitch_tol_rad": enter_overhead.get(
+            "gimbal_pitch_tol_rad",
+            0.20,
+        ),
+        "overhead_entry_yaw_tol_rad": enter_overhead.get("gimbal_yaw_tol_rad", 0.15),
+        "overhead_entry_hold_s": enter_overhead.get("hold_s", 0.5),
+        "overhead_exit_target_size_drop": exit_overhead.get("target_size_drop", 0.06),
+    }
+
+    for key in (
+        "yaw_align_thresh_rad",
+        "require_target_locked_for_body",
+        "require_target_stable_for_approach",
+        "require_yaw_aligned_for_approach",
+        "require_gimbal_fresh_for_gimbal",
+        "require_gimbal_fresh_for_body",
+        "require_gimbal_fresh_for_approach",
+    ):
+        if key in data:
+            normalized[key] = data[key]
+    return normalized
+
+
+def _normalize_recovery_config(
+    data: dict[str, Any],
+    runtime_fallback: dict[str, Any],
+) -> dict[str, Any]:
+    recovery = _section(data, "recovery")
+    lost_target = _section(recovery, "lost_target")
+    if lost_target:
+        return {
+            "lost_target_recenter_enabled": lost_target.get(
+                "recenter_gimbal_enabled",
+                True,
+            ),
+            "lost_target_recenter_timeout_sec": lost_target.get("recenter_after_s", 10.0),
+            "lost_target_recenter_pitch_deg": lost_target.get("recenter_pitch_deg", 0.0),
+            "lost_target_recenter_yaw_deg": lost_target.get("recenter_yaw_deg", 0.0),
+        }
+
+    return {
+        "lost_target_recenter_enabled": runtime_fallback.get(
+            "lost_target_recenter_enabled",
+            True,
+        ),
+        "lost_target_recenter_timeout_sec": runtime_fallback.get(
+            "lost_target_recenter_timeout_sec",
+            10.0,
+        ),
+        "lost_target_recenter_pitch_deg": runtime_fallback.get(
+            "lost_target_recenter_pitch_deg",
+            0.0,
+        ),
+        "lost_target_recenter_yaw_deg": runtime_fallback.get(
+            "lost_target_recenter_yaw_deg",
+            0.0,
+        ),
+    }
+
+
 def _section(data: dict[str, Any], key: str) -> dict[str, Any]:
     section = data.get(key, {})
     if section is None:
@@ -914,12 +1067,6 @@ def _strict_bool(value: Any, path: str) -> bool:
         if lowered in {"0", "false", "no", "n", "off"}:
             return False
     raise ValueError(f"invalid boolean for {path}: {value!r}")
-
-
-def _optional_bool(value: Any, path: str) -> bool | None:
-    if value is None:
-        return None
-    return _strict_bool(value, path)
 
 
 def _optional_float(value: Any) -> float | None:

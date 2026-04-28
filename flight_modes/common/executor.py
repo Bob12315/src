@@ -26,6 +26,9 @@ class TelemetryLinkLike(Protocol):
     def send_gimbal_rate(self, yaw_rate: float, pitch_rate: float) -> None:
         ...
 
+    def send_gimbal_angle(self, pitch: float, yaw: float, roll: float = 0.0) -> None:
+        ...
+
 
 @dataclass(slots=True)
 class FlightCommandExecutorConfig:
@@ -74,14 +77,18 @@ class FlightCommandExecutor:
             if self.config.log_commands:
                 self.logger.info(
                     "dry-run flight command vx=%.3f vy=%.3f vz=%.3f yaw_rate=%.3f "
-                    "gimbal_rate=(%.3f,%.3f) enable=(gimbal:%s body:%s approach:%s) active=%s",
+                    "gimbal_rate=(%.3f,%.3f) gimbal_angle=(%s,%s) "
+                    "enable=(gimbal:%s gimbal_angle:%s body:%s approach:%s) active=%s",
                     self._finite_or_zero(getattr(cmd, "vx_cmd", 0.0)),
                     self._finite_or_zero(getattr(cmd, "vy_cmd", 0.0)),
                     self._finite_or_zero(getattr(cmd, "vz_cmd", 0.0)),
                     self._finite_or_zero(getattr(cmd, "yaw_rate_cmd", 0.0)),
                     self._finite_or_zero(getattr(cmd, "gimbal_yaw_rate_cmd", 0.0)),
                     self._finite_or_zero(getattr(cmd, "gimbal_pitch_rate_cmd", 0.0)),
+                    self._format_optional_angle(getattr(cmd, "gimbal_yaw_angle_cmd", None)),
+                    self._format_optional_angle(getattr(cmd, "gimbal_pitch_angle_cmd", None)),
                     bool(getattr(cmd, "enable_gimbal", False)),
+                    bool(getattr(cmd, "enable_gimbal_angle", False)),
                     bool(getattr(cmd, "enable_body", False)),
                     bool(getattr(cmd, "enable_approach", False)),
                     bool(getattr(cmd, "active", False)),
@@ -92,6 +99,7 @@ class FlightCommandExecutor:
             return
 
         try:
+            self._execute_gimbal_angle(cmd)
             self._execute_body(cmd)
             self._execute_gimbal(cmd)
             self._last_exception = None
@@ -176,6 +184,43 @@ class FlightCommandExecutor:
             yaw_rate_cmd,
             pitch_rate_cmd,
         )
+
+    def _execute_gimbal_angle(self, cmd: FlightCommand) -> None:
+        if not bool(getattr(cmd, "enable_gimbal_angle", False)):
+            return
+        if self.telemetry_link is None:
+            return
+
+        angle_sender = getattr(self.telemetry_link, "send_gimbal_angle", None)
+        if not callable(angle_sender):
+            self.logger.warning(
+                "skip gimbal angle command because telemetry_link has no send_gimbal_angle(...) interface"
+            )
+            return
+
+        yaw_angle = self._optional_finite(getattr(cmd, "gimbal_yaw_angle_cmd", None))
+        pitch_angle = self._optional_finite(getattr(cmd, "gimbal_pitch_angle_cmd", None))
+        if yaw_angle is None or pitch_angle is None:
+            self.logger.warning(
+                "skip gimbal angle command because yaw/pitch target is invalid yaw=%s pitch=%s",
+                yaw_angle,
+                pitch_angle,
+            )
+            return
+
+        angle_sender(
+            pitch=degrees(pitch_angle),
+            yaw=degrees(yaw_angle),
+            roll=self.config.gimbal_roll_deg,
+        )
+        if self.config.log_commands:
+            self.logger.debug(
+                "executed gimbal angle command yaw=%.3f rad pitch=%.3f rad (%.2f deg, %.2f deg)",
+                yaw_angle,
+                pitch_angle,
+                degrees(yaw_angle),
+                degrees(pitch_angle),
+            )
 
     def _can_execute_body(self, cmd: FlightCommand) -> bool:
         if self.telemetry_link is None:
@@ -272,3 +317,16 @@ class FlightCommandExecutor:
             return 0.0
         return value
 
+    def _optional_finite(self, value: Any) -> float | None:
+        if value is None:
+            return None
+        value = float(value)
+        if not math.isfinite(value):
+            return None
+        return value
+
+    def _format_optional_angle(self, value: Any) -> str:
+        finite = self._optional_finite(value)
+        if finite is None:
+            return "none"
+        return f"{finite:.3f}"

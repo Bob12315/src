@@ -40,14 +40,16 @@ class SystemRunner:
         )
         self.mission_manager = MissionManager(
             MissionManagerConfig(
+                initial_mode=config.mission.initial_mode,
                 overhead_entry_target_size_thresh=(
-                    config.control.mode.overhead_entry_target_size_thresh
+                    config.mission.overhead_entry_target_size_thresh
                 ),
-                overhead_entry_pitch_rad=config.control.mode.overhead_entry_pitch_rad,
-                overhead_entry_pitch_tol_rad=config.control.mode.overhead_entry_pitch_tol_rad,
-                overhead_entry_yaw_tol_rad=config.control.mode.overhead_entry_yaw_tol_rad,
-                overhead_entry_hold_s=config.control.mode.overhead_entry_hold_s,
-                overhead_exit_target_size_drop=config.control.mode.overhead_exit_target_size_drop,
+                overhead_entry_pitch_rad=config.mission.overhead_entry_pitch_rad,
+                overhead_entry_pitch_tol_rad=config.mission.overhead_entry_pitch_tol_rad,
+                overhead_entry_yaw_tol_rad=config.mission.overhead_entry_yaw_tol_rad,
+                overhead_entry_hold_s=config.mission.overhead_entry_hold_s,
+                overhead_exit_target_size_drop=config.mission.overhead_exit_target_size_drop,
+                auto_switch_enabled=config.mission.auto_switch_enabled,
             )
         )
         self.mode_registry = ModeRegistry(

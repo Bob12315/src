@@ -49,6 +49,9 @@ class OverheadHoldMode:
         )
 
         gimbal_cmd = self.gimbal.update(inputs, enabled=enable_gimbal)
+        enable_gimbal_output = (
+            enable_gimbal and gimbal_cmd.active and not gimbal_cmd.angle_active
+        )
         body_cmd = self.body.update(inputs, enabled=enable_body)
         approach_cmd = self.approach.update(inputs, enabled=enable_approach)
 
@@ -56,6 +59,16 @@ class OverheadHoldMode:
             vx_cmd=approach_cmd.vx_cmd if approach_cmd.valid and approach_cmd.active else 0.0,
             vy_cmd=body_cmd.vy_cmd if body_cmd.valid and body_cmd.active else 0.0,
             yaw_rate_cmd=body_cmd.yaw_rate_cmd if body_cmd.valid and body_cmd.active else 0.0,
+            gimbal_yaw_angle_cmd=(
+                gimbal_cmd.yaw_angle_cmd
+                if gimbal_cmd.valid and gimbal_cmd.angle_active
+                else None
+            ),
+            gimbal_pitch_angle_cmd=(
+                gimbal_cmd.pitch_angle_cmd
+                if gimbal_cmd.valid and gimbal_cmd.angle_active
+                else None
+            ),
             gimbal_yaw_rate_cmd=(
                 gimbal_cmd.yaw_rate_cmd if gimbal_cmd.valid and gimbal_cmd.active else 0.0
             ),
@@ -63,9 +76,10 @@ class OverheadHoldMode:
                 gimbal_cmd.pitch_rate_cmd if gimbal_cmd.valid and gimbal_cmd.active else 0.0
             ),
             enable_body=enable_body,
-            enable_gimbal=enable_gimbal,
+            enable_gimbal=enable_gimbal_output,
+            enable_gimbal_angle=enable_gimbal and gimbal_cmd.angle_active,
             enable_approach=enable_approach,
-            active=enable_gimbal or enable_body or enable_approach,
+            active=enable_gimbal_output or gimbal_cmd.angle_active or enable_body or enable_approach,
             valid=True,
         )
         mode_name = (
@@ -88,6 +102,9 @@ class OverheadHoldMode:
             hold_reason=hold_reason,
             detail={
                 "enable_gimbal": enable_gimbal,
+                "enable_gimbal_output": enable_gimbal_output,
+                "enable_gimbal_angle": command.enable_gimbal_angle,
+                "gimbal_pitch_aligned": gimbal_cmd.pitch_aligned,
                 "enable_body": enable_body,
                 "enable_approach": enable_approach,
                 "vision_fresh": vision_fresh,

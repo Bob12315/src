@@ -85,3 +85,21 @@ def test_non_finite_inputs_are_zeroed() -> None:
     assert shaped.gimbal_yaw_rate_cmd == pytest.approx(0.0)
     assert shaped.gimbal_pitch_rate_cmd == pytest.approx(0.0)
 
+
+def test_gimbal_angle_command_is_passed_through() -> None:
+    shaper = CommandShaper()
+
+    shaped = shaper.update(
+        FlightCommand(
+            gimbal_yaw_angle_cmd=0.1,
+            gimbal_pitch_angle_cmd=-1.5707963267948966,
+            enable_gimbal_angle=True,
+            valid=True,
+        ),
+        dt=0.02,
+    )
+
+    assert shaped.enable_gimbal_angle is True
+    assert shaped.gimbal_yaw_angle_cmd == pytest.approx(0.1)
+    assert shaped.gimbal_pitch_angle_cmd == pytest.approx(-1.5707963267948966)
+    assert shaped.active is True

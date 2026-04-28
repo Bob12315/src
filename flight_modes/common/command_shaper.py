@@ -35,6 +35,7 @@ class CommandShaper:
     def update(self, raw: FlightCommand, dt: float) -> FlightCommand:
         enable_body = bool(raw.enable_body)
         enable_gimbal = bool(raw.enable_gimbal)
+        enable_gimbal_angle = bool(raw.enable_gimbal_angle)
         enable_approach = bool(raw.enable_approach)
         body_enabled = enable_body or enable_approach
 
@@ -131,12 +132,16 @@ class CommandShaper:
                 -self.config.max_gimbal_pitch_rate,
                 self.config.max_gimbal_pitch_rate,
             ),
+            gimbal_yaw_angle_cmd=self._angle_or_none(raw.gimbal_yaw_angle_cmd),
+            gimbal_pitch_angle_cmd=self._angle_or_none(raw.gimbal_pitch_angle_cmd),
             enable_body=enable_body,
             enable_gimbal=enable_gimbal,
+            enable_gimbal_angle=enable_gimbal_angle,
             enable_approach=enable_approach,
             active=self._compute_active(
                 enable_body=enable_body,
                 enable_gimbal=enable_gimbal,
+                enable_gimbal_angle=enable_gimbal_angle,
                 enable_approach=enable_approach,
                 vx_cmd=shaped_vx,
                 vy_cmd=shaped_vy,
@@ -201,6 +206,7 @@ class CommandShaper:
         self,
         enable_body: bool,
         enable_gimbal: bool,
+        enable_gimbal_angle: bool,
         enable_approach: bool,
         vx_cmd: float,
         vy_cmd: float,
@@ -209,7 +215,7 @@ class CommandShaper:
         gimbal_yaw_rate_cmd: float,
         gimbal_pitch_rate_cmd: float,
     ) -> bool:
-        if enable_body or enable_gimbal or enable_approach:
+        if enable_body or enable_gimbal or enable_gimbal_angle or enable_approach:
             return True
         return not all(
             math.isclose(value, 0.0, abs_tol=1e-9)
@@ -230,3 +236,11 @@ class CommandShaper:
             return 0.0
         return value
 
+    @staticmethod
+    def _angle_or_none(value: float | None) -> float | None:
+        if value is None:
+            return None
+        value = float(value)
+        if not math.isfinite(value):
+            return None
+        return value

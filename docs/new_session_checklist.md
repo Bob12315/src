@@ -93,6 +93,7 @@ app/system_runner.py
 app/mode_registry.py
 app/health_monitor.py
 config/app.yaml
+config/mission.yaml
 tests/test_mission_manager.py
 ```
 
@@ -102,6 +103,7 @@ tests/test_mission_manager.py
 app/mission_manager.py
 app/mode_registry.py
 config/app.yaml
+config/mission.yaml
 tests/test_mission_manager.py
 ```
 
@@ -245,9 +247,9 @@ docs/running.md
 docs/install.md
 docs/configuration.md
 config/app.yaml
+config/mission.yaml
 config/flight_modes.yaml
 config/telemetry.yaml
-config/debug.yaml
 yolo_app/config.yaml
 ```
 

@@ -37,10 +37,6 @@ class OverheadBodyController:
             value=float(inputs.ex_cam),
             threshold=self.config.deadband_ex_cam,
         )
-        yaw_error = self._apply_deadband(
-            value=-float(inputs.gimbal_yaw),
-            threshold=self.config.deadband_yaw,
-        )
 
         vy_cmd = self.config.vy_sign * self.config.kp_vy * ex_cam
         if self.config.use_derivative_vy:
@@ -51,14 +47,9 @@ class OverheadBodyController:
             )
             vy_cmd += self.config.vy_sign * self.config.kd_vy * d_ex_cam
 
-        yaw_rate_cmd = self.config.yaw_sign * self.config.kp_yaw * yaw_error
+        yaw_rate_cmd = 0.0
 
         vy_cmd = self._clamp(vy_cmd, -self.config.max_vy, self.config.max_vy)
-        yaw_rate_cmd = self._clamp(
-            yaw_rate_cmd,
-            -self.config.max_yaw_rate,
-            self.config.max_yaw_rate,
-        )
 
         self._last_ex_cam = float(inputs.ex_cam)
         self._last_gimbal_yaw = float(inputs.gimbal_yaw)
@@ -110,4 +101,3 @@ class OverheadBodyController:
 
     def _make_inactive_command(self, valid: bool) -> OverheadBodyCommand:
         return OverheadBodyCommand(active=False, valid=valid)
-
