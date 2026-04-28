@@ -5,8 +5,8 @@ runtime:
   perception_timeout_sec: 1.0
   print_rate_hz: 2.0
   require_gimbal_feedback: true
-  ui_enabled: true
-  connect_telemetry: true
+  ui_enabled: false
+  connect_telemetry: false
   start_yolo_udp: true
   run_seconds: null
   log_level: INFO

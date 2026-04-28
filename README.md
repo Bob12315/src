@@ -60,7 +60,7 @@ pip install pymavlink pyyaml pytest
 ```
 
 ```bash
-conda create -n yolo python=3.10 -y
+conda create -n yolo python=3.11 -y
 conda activate yolo
 pip install ultralytics opencv-python pyyaml
 ```

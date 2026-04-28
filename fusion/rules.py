@@ -98,14 +98,13 @@ def build_fused_state(
     if bbox_h is None:
         bbox_h = getattr(perception_target, "h", None)
     bbox_area = bbox_w * bbox_h if bbox_w is not None and bbox_h is not None else None
-    drone_valid = bool(getattr(drone_state, "valid", state_valid))
-    control_enabled = bool(
-        perception_target.target_valid
-        and perception_target.tracking_state == "locked"
-        and drone_state.control_allowed
-        and not drone_state.stale
+    drone_valid = bool(getattr(drone_state, "valid", state_valid)) and state_valid
+    control_allowed = bool(
+        drone_state.control_allowed
         and drone_state.connected
+        and not drone_state.stale
     )
+    control_enabled = bool(target_locked and control_allowed)
     fusion_valid = bool(state_valid and target_locked and gimbal_usable)
     if drone_state.stale:
         control_enabled = False
@@ -146,7 +145,7 @@ def build_fused_state(
         vy=drone_state.vy,
         vz=drone_state.vz,
         altitude=drone_state.altitude,
-        control_allowed=drone_state.control_allowed,
+        control_allowed=control_allowed,
         control_enabled=control_enabled,
         state_valid=state_valid,
         fusion_valid=fusion_valid,
