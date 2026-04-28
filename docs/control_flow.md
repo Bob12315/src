@@ -1,0 +1,176 @@
+# 控制数据流
+
+本文描述从一帧 YOLO 输出到 MAVLink 命令的完整链路。
+
+## 1. YOLO 输出
+
+`yolo_app` 读取视频源，调用 Ultralytics YOLO 官方 tracking 和 ByteTrack，维护主目标，并通过 UDP JSON 输出。
+
+典型字段：
+
+```text
+timestamp
+frame_id
+target_valid
+tracking_state
+track_id
+class_name
+confidence
+cx/cy/w/h
+image_width/image_height
+target_size
+ex/ey
+lost_count
+```
+
+## 2. app 接收 YOLO
+
+`app.service_manager.YoloUdpReceiver` 监听 `config/app.yaml` 中的：
+
+```yaml
+yolo_udp_ip
+yolo_udp_port
+```
+
+并将 JSON 解码为 `fusion.models.PerceptionTarget`。
+
+如果超时未收到 YOLO，`target_valid` 会置为 false。
+
+## 3. telemetry 状态
+
+`telemetry_link.LinkManager` 提供：
+
+```python
+get_latest_drone_state()
+get_latest_gimbal_state()
+get_link_status()
+```
+
+状态来自 `TelemetryReceiver -> StateCache`。
+
+## 4. fusion
+
+`FusionManager.update(perception, drone, gimbal)` 输出 `FusedState`。
+
+融合层负责：
+
+- 数据有效性。
+- 目标状态。
+- 云台状态。
+- 机体姿态和速度。
+- `control_allowed`。
+- 相机误差和机体系误差。
+
+融合层不负责：
+
+- 任务切换。
+- 速度控制。
+- MAVLink 发送。
+
+## 5. input adapter
+
+`FlightModeInputAdapter.adapt(fused)` 输出 `FlightModeInput`。
+
+它负责：
+
+- 计算 dt。
+- 计算 source age。
+- 判断 track switched。
+- 判断 target stable。
+- 对误差、云台角、目标尺度做一阶低通。
+
+## 6. health monitor
+
+`HealthMonitor.update(inputs)` 输出健康状态。
+
+它负责：
+
+- vision 是否 fresh。
+- drone 是否 fresh。
+- gimbal 是否 fresh。
+- fusion 是否 ready。
+- control 是否 ready。
+- hold reason。
+
+## 7. mission manager
+
+`MissionManager.update(inputs, health)` 输出 active mode。
+
+典型流转：
+
+```text
+IDLE
+  -> APPROACH_TRACK
+  -> OVERHEAD_HOLD
+  -> APPROACH_TRACK
+```
+
+mission manager 只决定 active mode，不计算速度。
+
+## 8. flight mode
+
+`ModeRegistry.get(active_mode)` 取得具体 mode，然后：
+
+```python
+raw_command, mode_status = mode.update(inputs)
+```
+
+`APPROACH_TRACK`：
+
+- `ex_cam/ey_cam -> gimbal yaw/pitch rate`
+- `ex_body -> vy`
+- `gimbal_yaw -> yaw_rate`
+- `target_size_ref - target_size -> vx`
+
+`OVERHEAD_HOLD`：
+
+- gimbal 固定向下。
+- `ex_cam -> vy`
+- `ey_cam -> vx`
+
+## 9. debug runtime
+
+`DebugRuntime` 可覆盖：
+
+- active mode。
+- gimbal/body/approach 通道。
+- command dry-run 语义。
+
+## 10. command shaper
+
+`CommandShaper.update(raw_command, dt)` 输出 shaped command。
+
+它负责：
+
+- 限幅。
+- slew rate 平滑。
+- disabled 通道归零。
+- NaN/inf 归零。
+
+## 11. executor
+
+`FlightCommandExecutor.execute(shaped)` 将命令交给 `telemetry_link`。
+
+body 通道：
+
+```python
+LinkManager.submit_control_command(ControlCommand(...))
+```
+
+gimbal 通道：
+
+```python
+LinkManager.send_gimbal_rate(...)
+```
+
+如果 `send_commands=false`，只打印 dry-run 日志，不发送。
+
+## 12. telemetry_link 发送
+
+`CommandSender` 从队列取命令并发送：
+
+- `ControlCommand` -> `SET_POSITION_TARGET_LOCAL_NED`
+- `GimbalRateCommand` -> `MAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW`
+- `ActionCommand` -> `COMMAND_LONG` 或 `COMMAND_INT`
+
+断线时清空连续控制命令，避免恢复连接后发送旧命令。

@@ -9,21 +9,61 @@ from uav_ui.control_switches import ControlRuntimeSwitches, ControlSwitchSnapsho
 from uav_ui.yolo_command_client import YoloCommandClient
 
 
+_CONTINUOUS_MANUAL_COMMANDS = {"body_vel", "yaw_rate", "stop", "gimbal_rate"}
+_MANUAL_COMMANDS = {
+    "switch_source",
+    "mode",
+    "arm",
+    "disarm",
+    "takeoff",
+    "land",
+    "condition_yaw",
+    "change_speed",
+    "set_home",
+    "global_goto",
+    "local_pos",
+    "reposition",
+    "set_roi_location",
+    "roi_none",
+    "gimbal_manager_configure",
+    "set_message_interval",
+    "message_interval",
+    "body_vel",
+    "yaw_rate",
+    "stop",
+    "gimbal",
+    "gimbal_rate",
+}
+
+
 def build_ui_command_handler(
     manager: LinkManager,
     *,
     controller_switches: ControlRuntimeSwitches | None = None,
     yolo_client: YoloCommandClient | None = None,
+    task_mode_handler: Callable[[str | None], CommandResult] | None = None,
 ) -> Callable[[str], CommandResult]:
     def _handle(command: str) -> CommandResult:
         own_result = _dispatch_ui_command(
             command,
+            manager=manager,
             controller_switches=controller_switches,
             yolo_client=yolo_client,
+            task_mode_handler=task_mode_handler,
         )
         if own_result is not None:
             return own_result
-        return dispatch_text_command(manager, command)
+        command_root = _command_root(command)
+        sending_disabled_before_dispatch = False
+        if command_root in _CONTINUOUS_MANUAL_COMMANDS:
+            sending_disabled_before_dispatch = _disable_control_sending_for_manual_command(
+                manager,
+                controller_switches,
+            )
+        result = dispatch_text_command(manager, command)
+        if result.ok and command_root in _MANUAL_COMMANDS and not sending_disabled_before_dispatch:
+            _disable_control_sending_for_manual_command(manager, controller_switches)
+        return result
 
     return _handle
 
@@ -31,8 +71,10 @@ def build_ui_command_handler(
 def _dispatch_ui_command(
     command: str,
     *,
+    manager: LinkManager,
     controller_switches: ControlRuntimeSwitches | None,
     yolo_client: YoloCommandClient | None,
+    task_mode_handler: Callable[[str | None], CommandResult] | None,
 ) -> CommandResult | None:
     parts = command.strip().split()
     if not parts:
@@ -42,9 +84,11 @@ def _dispatch_ui_command(
     if root in {"controller", "controllers"}:
         return _dispatch_controller_command(parts, controller_switches)
     if root == "control":
-        return _dispatch_control_command(parts, controller_switches)
+        return _dispatch_control_command(parts, manager, controller_switches)
     if root == "target":
         return _dispatch_target_command(parts, yolo_client)
+    if root in {"task", "mission"}:
+        return _dispatch_task_command(parts, task_mode_handler)
     return None
 
 
@@ -73,6 +117,7 @@ def _dispatch_controller_command(
 
 def _dispatch_control_command(
     parts: list[str],
+    manager: LinkManager,
     controller_switches: ControlRuntimeSwitches | None,
 ) -> CommandResult:
     if controller_switches is None:
@@ -84,8 +129,11 @@ def _dispatch_control_command(
         snapshot = controller_switches.set_send_commands(True)
     elif action in {"off", "disable", "disabled", "0", "false"}:
         snapshot = controller_switches.set_send_commands(False)
+        _clear_continuous_commands(manager)
     elif action in {"toggle", "tog"}:
         snapshot = controller_switches.toggle_send_commands()
+        if not snapshot.send_commands:
+            _clear_continuous_commands(manager)
     else:
         return CommandResult(False, "control send action must be on, off, or toggle")
     return CommandResult(True, f"control send_commands={'ON' if snapshot.send_commands else 'OFF'}")
@@ -123,6 +171,23 @@ def _dispatch_target_command(
     return CommandResult(False, "target action must be next, prev, lock, or unlock")
 
 
+def _dispatch_task_command(
+    parts: list[str],
+    task_mode_handler: Callable[[str | None], CommandResult] | None,
+) -> CommandResult:
+    if task_mode_handler is None:
+        return CommandResult(False, "task mode switching is not available in this UI")
+    if len(parts) == 2 and parts[1].lower() in {"auto", "clear"}:
+        return task_mode_handler(None)
+    if len(parts) == 2:
+        return task_mode_handler(parts[1])
+    if len(parts) == 3 and parts[1].lower() == "mode":
+        if parts[2].lower() in {"auto", "clear"}:
+            return task_mode_handler(None)
+        return task_mode_handler(parts[2])
+    return CommandResult(False, "format: task mode <APPROACH_TRACK|OVERHEAD_HOLD|auto>")
+
+
 def format_controller_snapshot(snapshot: ControlSwitchSnapshot) -> str:
     return (
         f"G={'ON' if snapshot.gimbal else 'OFF'} "
@@ -130,3 +195,25 @@ def format_controller_snapshot(snapshot: ControlSwitchSnapshot) -> str:
         f"A={'ON' if snapshot.approach else 'OFF'} "
         f"SEND={'ON' if snapshot.send_commands else 'OFF'}"
     )
+
+
+def _command_root(command: str) -> str:
+    parts = command.strip().split(maxsplit=1)
+    return parts[0].lower() if parts else ""
+
+
+def _disable_control_sending_for_manual_command(
+    manager: LinkManager,
+    controller_switches: ControlRuntimeSwitches | None,
+) -> bool:
+    if controller_switches is None:
+        return False
+    controller_switches.set_send_commands(False)
+    _clear_continuous_commands(manager)
+    return True
+
+
+def _clear_continuous_commands(manager: LinkManager) -> None:
+    clear_sender = getattr(manager, "clear_continuous_commands", None)
+    if callable(clear_sender):
+        clear_sender()

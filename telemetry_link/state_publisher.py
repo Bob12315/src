@@ -4,7 +4,10 @@ import json
 import socket
 from dataclasses import asdict
 
-from models import DroneState, GimbalState, LinkStatus
+try:
+    from .models import DroneState, GimbalState, LinkStatus
+except ImportError:  # pragma: no cover - supports direct script execution
+    from models import DroneState, GimbalState, LinkStatus
 
 
 class StatePublisher:

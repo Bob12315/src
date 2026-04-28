@@ -1,5 +1,5 @@
 # YOLO 模型权重路径，支持官方模型或自定义训练得到的 .pt 文件
-model_path: "./best.pt"
+model_path: "/home/level6/uav_project/src/yolo_app/best.pt"
 
 # 视频输入源：
 # 1. 如果是本地视频设备，请填写 /dev/videoX

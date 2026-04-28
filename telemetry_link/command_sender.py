@@ -8,12 +8,20 @@ import time
 from pymavlink import mavutil
 from pymavlink.dialects.v20 import ardupilotmega
 
-from command_queue import CommandQueue
-from config import TelemetryConfig
-from mavlink_client import MavlinkClient
-from models import ActionCommand, ActionType, ControlCommand, ControlType, GimbalRateCommand
-from rate_controller import RateController
-from state_cache import StateCache
+try:
+    from .command_queue import CommandQueue
+    from .config import TelemetryConfig
+    from .mavlink_client import MavlinkClient
+    from .models import ActionCommand, ActionType, ControlCommand, ControlType, GimbalRateCommand
+    from .rate_controller import RateController
+    from .state_cache import StateCache
+except ImportError:  # pragma: no cover - supports direct script execution
+    from command_queue import CommandQueue
+    from config import TelemetryConfig
+    from mavlink_client import MavlinkClient
+    from models import ActionCommand, ActionType, ControlCommand, ControlType, GimbalRateCommand
+    from rate_controller import RateController
+    from state_cache import StateCache
 
 
 class CommandSender(threading.Thread):

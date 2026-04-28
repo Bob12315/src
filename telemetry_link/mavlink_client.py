@@ -6,7 +6,10 @@ from typing import Any, Callable
 
 from pymavlink import mavutil
 
-from config import EndpointConfig
+try:
+    from .config import EndpointConfig
+except ImportError:  # pragma: no cover - supports direct script execution
+    from config import EndpointConfig
 
 
 def open_mavlink_connection(url: str, baud: int | None = None):

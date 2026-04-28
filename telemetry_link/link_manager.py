@@ -5,13 +5,22 @@ import threading
 import time
 from dataclasses import dataclass
 
-from command_queue import CommandQueue
-from command_sender import CommandSender
-from config import EndpointConfig, TelemetryConfig
-from mavlink_client import MavlinkClient
-from models import ActionCommand, ActionType, ControlCommand, ControlType, DroneState, GimbalRateCommand, GimbalState, LinkStatus
-from state_cache import StateCache
-from telemetry_receiver import TelemetryReceiver
+try:
+    from .command_queue import CommandQueue
+    from .command_sender import CommandSender
+    from .config import EndpointConfig, TelemetryConfig
+    from .mavlink_client import MavlinkClient
+    from .models import ActionCommand, ActionType, ControlCommand, ControlType, DroneState, GimbalRateCommand, GimbalState, LinkStatus
+    from .state_cache import StateCache
+    from .telemetry_receiver import TelemetryReceiver
+except ImportError:  # pragma: no cover - supports direct script execution
+    from command_queue import CommandQueue
+    from command_sender import CommandSender
+    from config import EndpointConfig, TelemetryConfig
+    from mavlink_client import MavlinkClient
+    from models import ActionCommand, ActionType, ControlCommand, ControlType, DroneState, GimbalRateCommand, GimbalState, LinkStatus
+    from state_cache import StateCache
+    from telemetry_receiver import TelemetryReceiver
 
 
 @dataclass(slots=True)
@@ -34,10 +43,11 @@ class SourceRuntime:
             self.worker_lock = threading.Lock()
 
     def start(self, logger: logging.Logger) -> None:
-        self._connect_and_start_workers(logger)
+        if self.monitor_thread is not None and self.monitor_thread.is_alive():
+            return
         self.monitor_thread = threading.Thread(
             name=f"LinkMonitor-{self.name}",
-            target=self._monitor_loop,
+            target=self._run_loop,
             args=(logger,),
             daemon=True,
         )
@@ -112,6 +122,10 @@ class SourceRuntime:
             if close_client:
                 self.client.close()
 
+    def _run_loop(self, logger: logging.Logger) -> None:
+        self._connect_and_start_workers(logger)
+        self._monitor_loop(logger)
+
     def _monitor_loop(self, logger: logging.Logger) -> None:
         while not self.stop_event.is_set():
             state = self.state_cache.get_latest_drone_state_validated(time.time())
@@ -155,6 +169,7 @@ class LinkManager:
         self.active_source = cfg.active_source
         self.active_lock = threading.Lock()
         self.runtimes: dict[str, SourceRuntime] = {}
+        self._start_thread: threading.Thread | None = None
 
         enabled_sources = (
             ["real", "sitl"] if cfg.data_source == "dual"
@@ -177,9 +192,22 @@ class LinkManager:
         for runtime in self.runtimes.values():
             runtime.start(self.logger)
 
+    def start_background(self) -> threading.Thread:
+        if self._start_thread is not None and self._start_thread.is_alive():
+            return self._start_thread
+        self._start_thread = threading.Thread(
+            name="LinkManagerStart",
+            target=self.start,
+            daemon=True,
+        )
+        self._start_thread.start()
+        return self._start_thread
+
     def stop(self) -> None:
         for runtime in self.runtimes.values():
             runtime.stop()
+        if self._start_thread is not None and self._start_thread.is_alive():
+            self._start_thread.join(timeout=1.0)
 
     def get_active_source(self) -> str:
         with self.active_lock:
@@ -189,10 +217,19 @@ class LinkManager:
         if source_name not in self.runtimes:
             self.logger.warning("switch_source failed: source=%s is not enabled by data_source=%s", source_name, self.cfg.data_source)
             return False
+        previous_source = self.get_active_source()
         with self.active_lock:
             self.active_source = source_name
-        self.logger.info("switched active_source=%s", source_name)
+        self._clear_inactive_continuous_commands(source_name)
+        self.logger.info("switched active_source=%s previous_source=%s", source_name, previous_source)
         return True
+
+    def _clear_inactive_continuous_commands(self, active_source: str) -> None:
+        for source_name, runtime in self.runtimes.items():
+            if source_name == active_source:
+                continue
+            runtime.command_queue.clear_control()
+            runtime.command_queue.clear_gimbal_rate()
 
     def _active_runtime(self) -> SourceRuntime:
         source_name = self.get_active_source()

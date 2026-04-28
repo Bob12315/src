@@ -4,7 +4,10 @@ import heapq
 import threading
 import time
 
-from models import ActionCommand, ControlCommand, GimbalRateCommand, QueuedAction
+try:
+    from .models import ActionCommand, ControlCommand, GimbalRateCommand, QueuedAction
+except ImportError:  # pragma: no cover - supports direct script execution
+    from models import ActionCommand, ControlCommand, GimbalRateCommand, QueuedAction
 
 
 class CommandQueue:

@@ -13,10 +13,16 @@ for path in (str(ROOT_DIR), str(TELEMETRY_DIR)):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-from command_dispatcher import dispatch_text_command
-from config import load_config
-from link_manager import LinkManager
-from state_publisher import StatePublisher
+try:
+    from .command_dispatcher import dispatch_text_command
+    from .config import load_config
+    from .link_manager import LinkManager
+    from .state_publisher import StatePublisher
+except ImportError:  # pragma: no cover - supports direct script execution
+    from command_dispatcher import dispatch_text_command
+    from config import load_config
+    from link_manager import LinkManager
+    from state_publisher import StatePublisher
 from uav_ui.terminal_ui import run_terminal_ui
 from utils import setup_logging
 

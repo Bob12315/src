@@ -1,0 +1,115 @@
+2026-04-27 22:52:51,032 [INFO] telemetry_link: starting telemetry link service data_source=sitl active_source=sitl
+2026-04-27 22:52:51,032 [INFO] LinkManager: source=sitl Attempting to reconnect...
+2026-04-27 22:52:51,033 [INFO] MavlinkClient: source=sitl connection_type=tcp endpoint=tcp:127.0.0.1:5762 sitl_mode=True
+2026-04-27 22:52:53,038 [WARNING] LinkManager: source=sitl reconnect failed: [Errno 111] Connection refused
+2026-04-27 22:52:55,039 [INFO] LinkManager: source=sitl Attempting to reconnect...
+2026-04-27 22:52:55,039 [INFO] MavlinkClient: source=sitl connection_type=tcp endpoint=tcp:127.0.0.1:5762 sitl_mode=True
+2026-04-27 22:52:55,281 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:57,041 [WARNING] LinkManager: source=sitl reconnect failed: [Errno 111] Connection refused
+2026-04-27 22:52:57,112 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:57,324 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:57,532 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:57,731 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:57,930 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:58,113 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:58,312 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:58,515 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:58,704 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,042 [INFO] LinkManager: source=sitl Attempting to reconnect...
+2026-04-27 22:52:59,042 [INFO] MavlinkClient: source=sitl connection_type=tcp endpoint=tcp:127.0.0.1:5762 sitl_mode=True
+2026-04-27 22:52:59,204 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,235 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,265 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,295 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,325 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,355 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,383 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,414 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,446 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,477 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,508 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,538 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,569 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,600 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,631 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,662 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,691 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,727 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,754 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,784 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,815 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,845 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,876 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:52:59,906 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:53:01,044 [WARNING] LinkManager: source=sitl reconnect failed: [Errno 111] Connection refused
+2026-04-27 22:53:03,045 [INFO] LinkManager: source=sitl Attempting to reconnect...
+2026-04-27 22:53:03,045 [INFO] MavlinkClient: source=sitl connection_type=tcp endpoint=tcp:127.0.0.1:5762 sitl_mode=True
+2026-04-27 22:56:19,176 [INFO] telemetry_link: starting telemetry link service data_source=sitl active_source=sitl
+2026-04-27 22:56:19,176 [INFO] LinkManager: source=sitl Attempting to reconnect...
+2026-04-27 22:56:19,176 [INFO] MavlinkClient: source=sitl connection_type=tcp endpoint=tcp:127.0.0.1:5762 sitl_mode=True
+2026-04-27 22:56:19,177 [INFO] MavlinkClient: waiting heartbeat...
+2026-04-27 22:56:19,180 [INFO] MavlinkClient: heartbeat received target_system=1 target_component=0
+2026-04-27 22:56:19,180 [INFO] LinkManager: source=sitl link ready connection_type=tcp endpoint=tcp:127.0.0.1:5762 sitl_mode=True target_system=1 target_component=0
+2026-04-27 22:56:19,180 [INFO] LinkManager: source=sitl Reconnected successfully
+2026-04-27 22:56:19,191 [INFO] CommandSender: sending action command=request_message_interval message=HEARTBEAT rate_hz=1.00
+2026-04-27 22:56:19,191 [INFO] CommandSender: sending action command=request_message_interval message=ATTITUDE rate_hz=10.00
+2026-04-27 22:56:19,191 [INFO] CommandSender: sending action command=request_message_interval message=GLOBAL_POSITION_INT rate_hz=10.00
+2026-04-27 22:56:19,191 [INFO] CommandSender: sending action command=request_message_interval message=LOCAL_POSITION_NED rate_hz=10.00
+2026-04-27 22:56:19,191 [INFO] CommandSender: sending action command=request_message_interval message=VFR_HUD rate_hz=5.00
+2026-04-27 22:56:19,192 [INFO] CommandSender: sending action command=request_message_interval message=SYS_STATUS rate_hz=2.00
+2026-04-27 22:56:19,192 [INFO] CommandSender: sending action command=request_message_interval message=GPS_RAW_INT rate_hz=2.00
+2026-04-27 22:56:19,192 [INFO] CommandSender: sending action command=request_message_interval message=RC_CHANNELS rate_hz=2.00
+2026-04-27 22:56:19,192 [INFO] CommandSender: sending action command=request_message_interval message=MOUNT_STATUS rate_hz=5.00
+2026-04-27 22:56:19,192 [INFO] CommandSender: sending action command=request_message_interval message=GIMBAL_DEVICE_ATTITUDE_STATUS rate_hz=10.00
+2026-04-27 22:56:34,070 [INFO] CommandSender: sending action command=set_mode mode=guild
+2026-04-27 22:56:34,070 [WARNING] CommandSender: failed to send action command ActionType.SET_MODE: unknown mode: guild
+2026-04-27 22:56:34,571 [INFO] CommandSender: sending action command=set_mode mode=guild
+2026-04-27 22:56:34,571 [WARNING] CommandSender: failed to send action command ActionType.SET_MODE: unknown mode: guild
+2026-04-27 22:56:35,072 [INFO] CommandSender: sending action command=set_mode mode=guild
+2026-04-27 22:56:35,072 [WARNING] CommandSender: failed to send action command ActionType.SET_MODE: unknown mode: guild
+2026-04-27 22:56:35,573 [INFO] CommandSender: sending action command=set_mode mode=guild
+2026-04-27 22:56:35,573 [WARNING] CommandSender: failed to send action command ActionType.SET_MODE: unknown mode: guild
+2026-04-27 22:57:05,599 [INFO] CommandSender: sending action command=set_mode mode=GUIDED
+2026-04-27 22:57:12,735 [INFO] CommandSender: sending action command=arm
+2026-04-27 22:57:16,944 [INFO] CommandSender: sending action command=takeoff altitude_m=5.00
+2026-04-27 22:57:23,935 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 22:57:24,010 [INFO] telemetry_link: telemetry link service stopped
+2026-04-27 23:26:03,724 [INFO] telemetry_link: starting telemetry link service data_source=sitl active_source=sitl
+2026-04-27 23:26:03,725 [INFO] LinkManager: source=sitl Attempting to reconnect...
+2026-04-27 23:26:03,725 [INFO] MavlinkClient: source=sitl connection_type=tcp endpoint=tcp:127.0.0.1:5762 sitl_mode=True
+2026-04-27 23:26:03,727 [INFO] MavlinkClient: waiting heartbeat...
+2026-04-27 23:26:03,728 [INFO] MavlinkClient: heartbeat received target_system=1 target_component=0
+2026-04-27 23:26:03,728 [INFO] LinkManager: source=sitl link ready connection_type=tcp endpoint=tcp:127.0.0.1:5762 sitl_mode=True target_system=1 target_component=0
+2026-04-27 23:26:03,730 [INFO] LinkManager: source=sitl Reconnected successfully
+2026-04-27 23:26:03,740 [INFO] CommandSender: sending action command=request_message_interval message=HEARTBEAT rate_hz=1.00
+2026-04-27 23:26:03,740 [INFO] CommandSender: sending action command=request_message_interval message=ATTITUDE rate_hz=10.00
+2026-04-27 23:26:03,741 [INFO] CommandSender: sending action command=request_message_interval message=GLOBAL_POSITION_INT rate_hz=10.00
+2026-04-27 23:26:03,741 [INFO] CommandSender: sending action command=request_message_interval message=LOCAL_POSITION_NED rate_hz=10.00
+2026-04-27 23:26:03,741 [INFO] CommandSender: sending action command=request_message_interval message=VFR_HUD rate_hz=5.00
+2026-04-27 23:26:03,741 [INFO] CommandSender: sending action command=request_message_interval message=SYS_STATUS rate_hz=2.00
+2026-04-27 23:26:03,741 [INFO] CommandSender: sending action command=request_message_interval message=GPS_RAW_INT rate_hz=2.00
+2026-04-27 23:26:03,741 [INFO] CommandSender: sending action command=request_message_interval message=RC_CHANNELS rate_hz=2.00
+2026-04-27 23:26:03,741 [INFO] CommandSender: sending action command=request_message_interval message=MOUNT_STATUS rate_hz=5.00
+2026-04-27 23:26:03,741 [INFO] CommandSender: sending action command=request_message_interval message=GIMBAL_DEVICE_ATTITUDE_STATUS rate_hz=10.00
+2026-04-27 23:26:24,906 [INFO] CommandSender: sending action command=gimbal_angle pitch=-20.00 yaw=0.00 roll=0.00 mount_mode=2
+2026-04-27 23:26:28,480 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 23:26:28,555 [INFO] telemetry_link: telemetry link service stopped
+2026-04-27 23:58:47,641 [INFO] telemetry_link: starting telemetry link service data_source=sitl active_source=sitl
+2026-04-27 23:58:47,642 [INFO] LinkManager: source=sitl Attempting to reconnect...
+2026-04-27 23:58:47,642 [INFO] MavlinkClient: source=sitl connection_type=tcp endpoint=tcp:127.0.0.1:5762 sitl_mode=True
+2026-04-27 23:58:47,643 [INFO] MavlinkClient: waiting heartbeat...
+2026-04-27 23:58:47,647 [INFO] MavlinkClient: heartbeat received target_system=1 target_component=0
+2026-04-27 23:58:47,647 [INFO] LinkManager: source=sitl link ready connection_type=tcp endpoint=tcp:127.0.0.1:5762 sitl_mode=True target_system=1 target_component=0
+2026-04-27 23:58:47,648 [INFO] LinkManager: source=sitl Reconnected successfully
+2026-04-27 23:58:47,658 [INFO] CommandSender: sending action command=request_message_interval message=HEARTBEAT rate_hz=1.00
+2026-04-27 23:58:47,659 [INFO] CommandSender: sending action command=request_message_interval message=ATTITUDE rate_hz=10.00
+2026-04-27 23:58:47,659 [INFO] CommandSender: sending action command=request_message_interval message=GLOBAL_POSITION_INT rate_hz=10.00
+2026-04-27 23:58:47,659 [INFO] CommandSender: sending action command=request_message_interval message=LOCAL_POSITION_NED rate_hz=10.00
+2026-04-27 23:58:47,659 [INFO] CommandSender: sending action command=request_message_interval message=VFR_HUD rate_hz=5.00
+2026-04-27 23:58:47,659 [INFO] CommandSender: sending action command=request_message_interval message=SYS_STATUS rate_hz=2.00
+2026-04-27 23:58:47,660 [INFO] CommandSender: sending action command=request_message_interval message=GPS_RAW_INT rate_hz=2.00
+2026-04-27 23:58:47,660 [INFO] CommandSender: sending action command=request_message_interval message=RC_CHANNELS rate_hz=2.00
+2026-04-27 23:58:47,660 [INFO] CommandSender: sending action command=request_message_interval message=MOUNT_STATUS rate_hz=5.00
+2026-04-27 23:58:47,660 [INFO] CommandSender: sending action command=request_message_interval message=GIMBAL_DEVICE_ATTITUDE_STATUS rate_hz=10.00
+2026-04-27 23:58:51,555 [INFO] telemetry_link: received signal 2, shutting down
+2026-04-27 23:58:51,625 [INFO] telemetry_link: telemetry link service stopped

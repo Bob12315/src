@@ -51,6 +51,7 @@ class _TelemetryTerminalUi:
         self.control_command_lines = control_command_lines
         self.command_handler = command_handler or (lambda command: dispatch_text_command(self.manager, command))
         self.input_buffer = ""
+        self.input_cursor = 0
         self.draft_buffer = ""
         self.history: list[str] = []
         self.history_index: int | None = None
@@ -124,7 +125,18 @@ class _TelemetryTerminalUi:
             return
         elif ch in (curses.KEY_BACKSPACE, "\b", "\x7f"):
             self._leave_history()
-            self.input_buffer = self.input_buffer[:-1]
+            self._delete_before_cursor()
+        elif ch == curses.KEY_DC:
+            self._leave_history()
+            self._delete_at_cursor()
+        elif ch == curses.KEY_LEFT:
+            self.input_cursor = max(0, self.input_cursor - 1)
+        elif ch == curses.KEY_RIGHT:
+            self.input_cursor = min(len(self.input_buffer), self.input_cursor + 1)
+        elif ch == curses.KEY_HOME or ch == "\x01":
+            self.input_cursor = 0
+        elif ch == curses.KEY_END or ch == "\x05":
+            self.input_cursor = len(self.input_buffer)
         elif ch == curses.KEY_UP:
             self._history_prev()
         elif ch == curses.KEY_DOWN:
@@ -133,13 +145,29 @@ class _TelemetryTerminalUi:
             return
         elif isinstance(ch, str) and ch.isprintable():
             self._leave_history()
-            self.input_buffer += ch
+            self._insert_text(ch)
 
     def _handle_escape_sequence(self) -> bool:
         sequence = "".join(str(ch) for ch in self._drain_available_chars(wait_sec=0.03))
         if sequence.startswith("[200~"):
             pasted = sequence.removeprefix("[200~")
             self._read_bracketed_paste(pasted)
+            return True
+        if sequence in {"[D", "OD"}:
+            self.input_cursor = max(0, self.input_cursor - 1)
+            return True
+        if sequence in {"[C", "OC"}:
+            self.input_cursor = min(len(self.input_buffer), self.input_cursor + 1)
+            return True
+        if sequence in {"[H", "OH", "[1~", "[7~"}:
+            self.input_cursor = 0
+            return True
+        if sequence in {"[F", "OF", "[4~", "[8~"}:
+            self.input_cursor = len(self.input_buffer)
+            return True
+        if sequence == "[3~":
+            self._leave_history()
+            self._delete_at_cursor()
             return True
         return bool(sequence)
 
@@ -161,9 +189,35 @@ class _TelemetryTerminalUi:
         if not normalized:
             return
         self._leave_history()
-        if self.input_buffer and not self.input_buffer.endswith(" "):
-            self.input_buffer += " "
-        self.input_buffer += normalized
+        prefix = " " if self.input_buffer and self.input_cursor == len(self.input_buffer) and not self.input_buffer.endswith(" ") else ""
+        self._insert_text(prefix + normalized)
+
+    def _insert_text(self, text: str) -> None:
+        if not text:
+            return
+        self.input_buffer = (
+            self.input_buffer[: self.input_cursor]
+            + text
+            + self.input_buffer[self.input_cursor :]
+        )
+        self.input_cursor += len(text)
+
+    def _delete_before_cursor(self) -> None:
+        if self.input_cursor <= 0:
+            return
+        self.input_buffer = (
+            self.input_buffer[: self.input_cursor - 1]
+            + self.input_buffer[self.input_cursor :]
+        )
+        self.input_cursor -= 1
+
+    def _delete_at_cursor(self) -> None:
+        if self.input_cursor >= len(self.input_buffer):
+            return
+        self.input_buffer = (
+            self.input_buffer[: self.input_cursor]
+            + self.input_buffer[self.input_cursor + 1 :]
+        )
 
     def _drain_available_chars(self, wait_sec: float = 0.0) -> list:
         chars = []
@@ -183,6 +237,7 @@ class _TelemetryTerminalUi:
     def _submit_input(self) -> None:
         command = self.input_buffer.strip()
         self.input_buffer = ""
+        self.input_cursor = 0
         self.draft_buffer = ""
         self.history_index = None
         if command in {"quit", "exit"}:
@@ -211,6 +266,7 @@ class _TelemetryTerminalUi:
         else:
             self.history_index = max(0, self.history_index - 1)
         self.input_buffer = self.history[self.history_index]
+        self.input_cursor = len(self.input_buffer)
 
     def _history_next(self) -> None:
         if self.history_index is None:
@@ -218,10 +274,12 @@ class _TelemetryTerminalUi:
         if self.history_index >= len(self.history) - 1:
             self.history_index = None
             self.input_buffer = self.draft_buffer
+            self.input_cursor = len(self.input_buffer)
             self.draft_buffer = ""
             return
         self.history_index += 1
         self.input_buffer = self.history[self.history_index]
+        self.input_cursor = len(self.input_buffer)
 
     def _leave_history(self) -> None:
         if self.history_index is not None:
@@ -254,6 +312,7 @@ class _TelemetryTerminalUi:
             control_height - 2,
             right_width - 4,
         )
+        self._move_input_cursor(height - 3, width)
         self.stdscr.refresh()
 
     def _draw_box(self, y: int, x: int, h: int, w: int, title: str) -> None:
@@ -322,12 +381,26 @@ class _TelemetryTerminalUi:
     def _draw_input_line(self, y: int, width: int) -> None:
         prompt = "> "
         self._addstr(y, 0, "-" * max(0, width - 1))
-        visible = self.input_buffer[-max(1, width - len(prompt) - 1):]
+        visible, _cursor_col = self._input_view(width, prompt)
         self._addstr(y + 1, 0, (prompt + visible)[: width - 1], curses.A_BOLD)
+
+    def _move_input_cursor(self, y: int, width: int) -> None:
+        prompt = "> "
+        _visible, cursor_col = self._input_view(width, prompt)
         try:
-            self.stdscr.move(y + 1, min(width - 1, len(prompt) + len(visible)))
+            self.stdscr.move(y + 1, cursor_col)
         except curses.error:
             pass
+
+    def _input_view(self, width: int, prompt: str) -> tuple[str, int]:
+        self.input_cursor = max(0, min(self.input_cursor, len(self.input_buffer)))
+        max_text_width = max(1, width - len(prompt) - 1)
+        start = max(0, self.input_cursor - max_text_width)
+        if start < len(self.input_buffer) - max_text_width and self.input_cursor == len(self.input_buffer):
+            start = max(0, len(self.input_buffer) - max_text_width)
+        visible = self.input_buffer[start : start + max_text_width]
+        cursor_col = len(prompt) + self.input_cursor - start
+        return visible, min(width - 1, max(0, cursor_col))
 
     def _draw_status_line(self, y: int, width: int) -> None:
         text = "Enter sends manual command. Up/Down history. Esc/Ctrl-C exits UI."

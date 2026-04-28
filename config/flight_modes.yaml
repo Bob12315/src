@@ -1,0 +1,97 @@
+input_adapter:
+  dt_default: 0.02
+  dt_min: 0.001
+  dt_max: 0.5
+  stable_hold_s: 0.3
+  age_invalid_value: .inf
+  ex_cam_tau_s: 0.08
+  ey_cam_tau_s: 0.08
+  ex_body_tau_s: 0.08
+  ey_body_tau_s: 0.08
+  gimbal_yaw_tau_s: 0.10
+  gimbal_pitch_tau_s: 0.10
+  target_size_tau_s: 0.12
+
+gimbal:
+  kp_yaw: 3.2
+  kp_pitch: 1.8
+  ki_yaw: 0.05
+  ki_pitch: 0.03
+  kd_yaw: 0.18
+  kd_pitch: 0.12
+  use_derivative: false
+  deadband_x: 0.01
+  deadband_y: 0.01
+  center_hold_yaw_threshold: 0.018
+  center_hold_pitch_threshold: 0.024
+  integral_limit: 0.25
+  derivative_limit_yaw: 1.5
+  derivative_limit_pitch: 1.0
+  max_yaw_rate: 1.1
+  max_pitch_rate: 0.85
+  yaw_sign: 1.0
+  pitch_sign: -1.0
+  overhead_downward_pitch_rad: 1.35
+  overhead_deadband_yaw: 0.02
+  overhead_deadband_pitch: 0.03
+  overhead_kp_yaw: 0.0
+  overhead_kp_pitch: 1.5
+  overhead_max_yaw_rate: 0.3
+  overhead_max_pitch_rate: 0.8
+  dt_min: 0.001
+
+body:
+  kp_vy: 1.0
+  kd_vy: 0.0
+  use_derivative_vy: true
+  kp_yaw: 0.8
+  kd_yaw: 0.4
+  use_derivative_yaw: true
+  deadband_ex_body: 0.02
+  deadband_gimbal_yaw: 0.02
+  max_vy: 1.0
+  max_yaw_rate: 1.0
+  vy_sign: 1.0
+  yaw_sign: 1.0
+  overhead_kp_vy: 1.0
+  overhead_kd_vy: 0.0
+  overhead_use_derivative_vy: false
+  overhead_deadband_ex_cam: 0.02
+  overhead_kp_yaw: 0.0
+  overhead_deadband_yaw: 0.05
+  dt_min: 0.001
+
+approach:
+  target_size_ref: 0.2
+  kp_vx: 20.0
+  kd_vx: 1.0
+  use_derivative: true
+  deadband_size: 0.01
+  max_forward_vx: 5.0
+  max_backward_vx: 0.2
+  vx_sign: 1.0
+  allow_backward: true
+  min_valid_target_size: 0.01
+  overhead_kp_vx: 1.0
+  overhead_kd_vx: 0.0
+  overhead_use_derivative: false
+  overhead_deadband_ey_cam: 0.02
+  overhead_vx_sign: 1.0
+  overhead_allow_backward: false
+  dt_min: 0.001
+
+shaper:
+  max_vx: 1.2
+  max_vy: 1.0
+  max_vz: 0.5
+  max_yaw_rate: 1.0
+  max_gimbal_yaw_rate: 1.0
+  max_gimbal_pitch_rate: 1.0
+  max_vx_rate: 2.0
+  max_vy_rate: 1.5
+  max_vz_rate: 1.0
+  max_yaw_rate_rate: 2.0
+  max_gimbal_yaw_rate_rate: 3.0
+  max_gimbal_pitch_rate_rate: 3.0
+  smooth_to_zero_when_disabled: true
+  dt_min: 0.001

@@ -1,0 +1,46 @@
+runtime:
+  yolo_udp_ip: "0.0.0.0"
+  yolo_udp_port: 5005
+  loop_hz: 20.0
+  perception_timeout_sec: 1.0
+  print_rate_hz: 2.0
+  require_gimbal_feedback: true
+  ui_enabled: true
+  connect_telemetry: true
+  start_yolo_udp: true
+  run_seconds: null
+  log_level: INFO
+  enable_gimbal_controller: true
+  enable_body_controller: true
+  enable_approach_controller: true
+  start_send_commands: false
+  lost_target_recenter_enabled: true
+  lost_target_recenter_timeout_sec: 10.0
+  lost_target_recenter_pitch_deg: 0.0
+  lost_target_recenter_yaw_deg: 0.0
+
+mission:
+  initial_mode: "APPROACH_TRACK"
+  max_vision_age_s: 0.3
+  max_drone_age_s: 0.3
+  max_gimbal_age_s: 0.3
+  yaw_align_thresh_rad: 0.35
+  overhead_entry_target_size_thresh: 10.0
+  overhead_entry_pitch_rad: 1.35
+  overhead_entry_pitch_tol_rad: 0.20
+  overhead_entry_yaw_tol_rad: 0.15
+  overhead_entry_hold_s: 0.5
+  overhead_exit_target_size_drop: 0.06
+  require_target_locked_for_body: true
+  require_target_stable_for_approach: true
+  require_yaw_aligned_for_approach: true
+  require_gimbal_fresh_for_gimbal: false
+  require_gimbal_fresh_for_body: true
+  require_gimbal_fresh_for_approach: true
+  auto_switch_enabled: true
+
+executor:
+  body_frame: 1
+  gimbal_roll_deg: 0.0
+  log_commands: true
+  send_commands: false

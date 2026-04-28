@@ -164,6 +164,20 @@ control send toggle
 
 这些命令只影响当前运行中的 control，不会修改配置文件。
 
+## 任务模式切换
+
+app 启动 UI 时支持切换程序内部任务模式：
+
+```text
+task mode APPROACH_TRACK
+task mode OVERHEAD_HOLD
+task auto
+```
+
+`task auto` 会取消强制任务模式，恢复 mission manager 自动切换。
+
+注意 `mode GUIDED` 仍然是飞控模式命令；`task mode ...` 才是 app 内部任务模式命令。
+
 初始值来自 [control/config.yaml](/home/level6/uav_project/src/control/config.yaml)：
 
 ```yaml

@@ -6,7 +6,10 @@ from dataclasses import dataclass
 
 from pymavlink import mavutil
 
-from link_manager import LinkManager
+try:
+    from .link_manager import LinkManager
+except ImportError:  # pragma: no cover - supports direct script execution
+    from link_manager import LinkManager
 
 
 @dataclass(slots=True)

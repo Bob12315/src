@@ -49,9 +49,11 @@ class TelemetryConfig:
     log_level: str
 
 
-def _to_bool(value: str | bool) -> bool:
+def _to_bool(value: Any) -> bool:
     if isinstance(value, bool):
         return value
+    if not isinstance(value, str):
+        raise argparse.ArgumentTypeError(f"invalid bool value: {value}")
     lowered = value.lower()
     if lowered in {"1", "true", "yes", "y", "on"}:
         return True
@@ -161,16 +163,16 @@ def load_config() -> TelemetryConfig:
         reconnect_interval_sec=float(merged["reconnect_interval_sec"]),
         receiver_idle_sleep_sec=float(merged["receiver_idle_sleep_sec"]),
         sender_idle_sleep_sec=float(merged["sender_idle_sleep_sec"]),
-        request_message_intervals=bool(merged["request_message_intervals"]),
+        request_message_intervals=_to_bool(merged["request_message_intervals"]),
         message_interval_hz={str(k): float(v) for k, v in dict(merged.get("message_interval_hz", {})).items()},
         gimbal_mount_mode=int(merged.get("gimbal_mount_mode", 2)),
         gimbal_yaw_min_deg=float(merged.get("gimbal_yaw_min_deg", -180.0)),
         gimbal_yaw_max_deg=float(merged.get("gimbal_yaw_max_deg", 180.0)),
         gimbal_pitch_min_deg=float(merged.get("gimbal_pitch_min_deg", -180.0)),
         gimbal_pitch_max_deg=float(merged.get("gimbal_pitch_max_deg", 180.0)),
-        state_udp_enabled=bool(merged.get("state_udp_enabled", True)),
+        state_udp_enabled=_to_bool(merged.get("state_udp_enabled", True)),
         state_udp_ip=str(merged.get("state_udp_ip", "127.0.0.1")),
         state_udp_port=int(merged.get("state_udp_port", 5010)),
-        ui_enabled=bool(merged.get("ui_enabled", False)),
+        ui_enabled=_to_bool(merged.get("ui_enabled", False)),
         log_level=str(merged["log_level"]),
     )

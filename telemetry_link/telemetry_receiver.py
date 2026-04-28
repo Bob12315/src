@@ -6,18 +6,32 @@ import time
 
 from pymavlink import mavutil
 
-from config import TelemetryConfig
-from mavlink_client import MavlinkClient
-from state_cache import StateCache
-from telemetry_parser import (
-    control_allowed_for_mode,
-    decode_copter_mode,
-    global_position_is_valid,
-    heartbeat_is_armed,
-    parse_gimbal_device_attitude_status,
-    parse_mount_status,
-    parse_sys_status_values,
-)
+try:
+    from .config import TelemetryConfig
+    from .mavlink_client import MavlinkClient
+    from .state_cache import StateCache
+    from .telemetry_parser import (
+        control_allowed_for_mode,
+        decode_copter_mode,
+        global_position_is_valid,
+        heartbeat_is_armed,
+        parse_gimbal_device_attitude_status,
+        parse_mount_status,
+        parse_sys_status_values,
+    )
+except ImportError:  # pragma: no cover - supports direct script execution
+    from config import TelemetryConfig
+    from mavlink_client import MavlinkClient
+    from state_cache import StateCache
+    from telemetry_parser import (
+        control_allowed_for_mode,
+        decode_copter_mode,
+        global_position_is_valid,
+        heartbeat_is_armed,
+        parse_gimbal_device_attitude_status,
+        parse_mount_status,
+        parse_sys_status_values,
+    )
 
 
 class TelemetryReceiver(threading.Thread):
