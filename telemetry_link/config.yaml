@@ -1,8 +1,8 @@
 # 数据源模式：real / sitl / dual
-data_source: sitl
+data_source: real
 
 # 当前对外暴露状态与发送控制命令的 active source：real / sitl
-active_source: sitl
+active_source: real
 
 sitl:
   # SITL 推荐使用 tcp 连接 SITL一般端口在5762

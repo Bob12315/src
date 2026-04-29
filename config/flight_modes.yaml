@@ -23,18 +23,18 @@ approach_track:
     require_gimbal_fresh_for_approach: true
 
   gimbal:
-    kp_yaw: 3.2
-    kp_pitch: 1.8
-    ki_yaw: 0.05
+    kp_yaw: 7.0
+    kp_pitch: 3.8
+    ki_yaw: 0.01
     ki_pitch: 0.03
-    kd_yaw: 0.18
+    kd_yaw: 0.4
     kd_pitch: 0.12
-    use_derivative: false
-    deadband_x: 0.01
-    deadband_y: 0.01
+    use_derivative: true
+    deadband_x: 0.02
+    deadband_y: 0.02
     integral_limit: 0.25
-    max_yaw_rate: 1.1
-    max_pitch_rate: 0.85
+    max_yaw_rate: 20.0
+    max_pitch_rate: 1.2
     yaw_sign: 1.0
     pitch_sign: -1.0
 

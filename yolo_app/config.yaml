@@ -1,12 +1,12 @@
 # YOLO 模型权重路径，支持官方模型或自定义训练得到的 .pt 文件
-model_path: "/home/level6/uav_project/src/yolo_app/best.pt"
+model_path: "/home/level6/uav_project/src/yolo_app/yolo11n.pt"
 
 # 视频输入源：
 # 1. 如果是本地视频设备，请填写 /dev/videoX
 # 2. 如果是 UDP H264/RTP 输入，请直接填写端口号，例如 "5600"
 # gazebo模拟器，启动前执行：gz topic -t /world/iris_runway/model/iris_with_gimbal/model/gimbal/link/pitch_link/sensor/camera/image/enable_streaming -m gz.msgs.Boolean -p "data: 1"
 # 3. 仍兼容 RTSP、本地视频文件，以及完整 GStreamer pipeline
-source: 5600
+source: /dev/video2
 
 # YOLO 推理尺寸，常用 640；数值越大通常越准，但推理耗时也会增加
 img_size: 640
@@ -35,8 +35,8 @@ udp_port: 5005
 # 自动选主目标策略，可选 center、biggest、class
 selection_mode: "class"
 
-# 当 selection_mode=class 时优先选择的类别名，例如 person、car
-target_class: "target"
+# 当 selection_mode=class 时优先选择的类别名，例如 person、car、target
+target_class: "person"
 
 # 锁定目标连续丢失多少帧后判定为真正丢失并自动解锁
 max_lost_frames: 5
