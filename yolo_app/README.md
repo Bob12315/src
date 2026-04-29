@@ -99,13 +99,13 @@ pip install ultralytics opencv-python pyyaml
 例如：
 
 ```text
-/home/level6/models/best.pt
+~/models/best.pt
 ```
 
 你只需要在 `config.yaml` 或命令行里设置：
 
 ```yaml
-model_path: "/home/level6/models/best.pt"
+model_path: "~/models/best.pt"
 ```
 
 ### 3.3 视频源准备
@@ -150,7 +150,7 @@ model_path: "/home/level6/models/best.pt"
 先进入目录：
 
 ```bash
-cd /home/level6/uav_project/src/yolo_app
+cd ~/uav_project/src/yolo_app
 ```
 
 ### 5.1 直接使用默认配置启动
@@ -169,7 +169,7 @@ python3 main.py
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source /dev/video0 \
   --tracker bytetrack.yaml \
   --udp-ip 127.0.0.1 \
@@ -180,7 +180,7 @@ python3 main.py \
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source rtsp://127.0.0.1:8554/live
 ```
 
@@ -188,8 +188,8 @@ python3 main.py \
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
-  --source /home/level6/videos/test.mp4
+  --model-path ~/models/best.pt \
+  --source ~/videos/test.mp4
 ```
 
 ### 5.4.1 使用 UDP 端口输入启动
@@ -202,11 +202,11 @@ python3 main.py \
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source 5600
 ```
 
-或者在 [config.yaml](/home/level6/uav_project/src/yolo_app/config.yaml) 中写：
+或者在 [config.yaml](config.yaml) 中写：
 
 ```yaml
 source: "5600"
@@ -240,11 +240,11 @@ udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,payload=96 !
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source "udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,payload=96 ! rtph264depay ! avdec_h264 ! videoconvert ! appsink drop=true sync=false"
 ```
 
-如果你希望直接写到配置文件中，可以在 [config.yaml](/home/level6/uav_project/src/yolo_app/config.yaml) 中这样改：
+如果你希望直接写到配置文件中，可以在 [config.yaml](config.yaml) 中这样改：
 
 ```yaml
 source: "udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,payload=96 ! rtph264depay ! avdec_h264 ! videoconvert ! appsink drop=true sync=false"
@@ -277,24 +277,24 @@ source: "udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,pay
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
-  --source /home/level6/videos/test.mp4 \
+  --model-path ~/models/best.pt \
+  --source ~/videos/test.mp4 \
   --save-video true \
-  --save-path /home/level6/uav_project/output/track_result.mp4
+  --save-path ~/uav_project/output/track_result.mp4
 ```
 
 ### 5.6 不显示窗口，仅做后台推理与 UDP 输出
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source /dev/video0 \
   --show false
 ```
 
 ## 6. 配置文件说明
 
-默认配置文件是 [config.yaml](/home/level6/uav_project/src/yolo_app/config.yaml)。
+默认配置文件是 [config.yaml](config.yaml)。
 
 当前主要参数说明如下：
 
@@ -335,7 +335,7 @@ python3 main.py \
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source /dev/video0 \
   --selection-mode center
 ```
@@ -348,7 +348,7 @@ python3 main.py \
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source /dev/video0 \
   --selection-mode biggest
 ```
@@ -361,7 +361,7 @@ python3 main.py \
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source /dev/video0 \
   --selection-mode class \
   --target-class person
@@ -576,7 +576,7 @@ PY
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source /dev/video0 \
   --selection-mode center \
   --udp-ip 127.0.0.1 \
@@ -588,7 +588,7 @@ python3 main.py \
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source /dev/video0 \
   --selection-mode class \
   --target-class person
@@ -598,7 +598,7 @@ python3 main.py \
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source /dev/video0 \
   --show false \
   --save-video false
@@ -608,25 +608,25 @@ python3 main.py \
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
-  --source /home/level6/videos/test.mp4 \
+  --model-path ~/models/best.pt \
+  --source ~/videos/test.mp4 \
   --show true \
   --save-video true \
-  --save-path /home/level6/uav_project/output/test_track.mp4
+  --save-path ~/uav_project/output/test_track.mp4
 ```
 
 ### 场景 5：使用本机 5600 端口的 GStreamer UDP H264 流
 
 ```bash
 python3 main.py \
-  --model-path /home/level6/models/best.pt \
+  --model-path ~/models/best.pt \
   --source "udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,payload=96 ! rtph264depay ! avdec_h264 ! videoconvert ! appsink drop=true sync=false" \
   --show true
 ```
 
 ### 场景 6：把 GStreamer 流写入配置文件后直接启动
 
-先修改 [config.yaml](/home/level6/uav_project/src/yolo_app/config.yaml)：
+先修改 [config.yaml](config.yaml)：
 
 ```yaml
 source: "udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,payload=96 ! rtph264depay ! avdec_h264 ! videoconvert ! appsink drop=true sync=false"
@@ -635,7 +635,7 @@ source: "udpsrc port=5600 ! application/x-rtp,media=video,encoding-name=H264,pay
 然后启动：
 
 ```bash
-cd /home/level6/uav_project/src/yolo_app
+cd ~/uav_project/src/yolo_app
 python3 main.py
 ```
 

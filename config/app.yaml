@@ -9,12 +9,12 @@ runtime:
   log_level: INFO
 
 services:
-  ui_enabled: true
-  connect_telemetry: true
+  ui_enabled: false
+  connect_telemetry: false
   start_yolo_udp: true
 
 executor:
   body_frame: 1
   gimbal_roll_deg: 0.0
   log_commands: true
-  send_commands: true
+  send_commands: false

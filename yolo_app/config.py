@@ -81,6 +81,13 @@ def _load_yaml_config(path: str) -> dict[str, Any]:
     return data
 
 
+def _expand_user_path(value: Any) -> str:
+    text = str(value)
+    if text.startswith("~"):
+        return str(Path(text).expanduser())
+    return text
+
+
 def load_config() -> AppConfig:
     parser = build_arg_parser()
     args = parser.parse_args()
@@ -94,8 +101,8 @@ def load_config() -> AppConfig:
             merged[key.replace("-", "_")] = value
 
     return AppConfig(
-        model_path=str(merged["model_path"]),
-        source=str(merged["source"]),
+        model_path=_expand_user_path(merged["model_path"]),
+        source=_expand_user_path(merged["source"]),
         img_size=int(merged["img_size"]),
         conf_thres=float(merged["conf_thres"]),
         iou_thres=float(merged["iou_thres"]),
@@ -109,7 +116,7 @@ def load_config() -> AppConfig:
         max_lost_frames=int(merged["max_lost_frames"]),
         show=bool(merged["show"]),
         save_video=bool(merged["save_video"]),
-        save_path=str(merged["save_path"]),
+        save_path=_expand_user_path(merged["save_path"]),
         line_width=int(merged.get("line_width", 2)),
         show_all_tracks=bool(merged.get("show_all_tracks", True)),
         command_enabled=bool(merged.get("command_enabled", True)),

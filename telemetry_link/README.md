@@ -128,7 +128,7 @@ manager.land()
 查看参数：
 
 ```bash
-cd /home/level6/uav_project/src
+cd ~/uav_project/src
 python -m telemetry_link.main --help
 ```
 

@@ -3,7 +3,7 @@
 以下命令默认工作目录为：
 
 ```bash
-cd /home/level6/uav_project/src
+cd ~/uav_project/src
 ```
 
 ## 1. 启动 YOLO
@@ -12,7 +12,7 @@ YOLO 建议在独立 conda 环境中运行：
 
 ```bash
 conda activate yolo
-cd /home/level6/uav_project/src/yolo_app
+cd ~/uav_project/src/yolo_app
 python main.py
 ```
 
@@ -28,7 +28,7 @@ runtime:
 
 ```bash
 conda activate uav-control
-cd /home/level6/uav_project/src
+cd ~/uav_project/src
 python -m app.main --send-commands false
 ```
 

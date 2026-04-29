@@ -8,9 +8,9 @@ gz topic -t /world/iris_runway/model/iris_with_gimbal/model/gimbal/link/pitch_li
 
 conda activate yolo
 
-python3 uav_project/src/yolo_app/main.py
+python3 ~/uav_project/src/yolo_app/main.py
 
-python3 uav_project/src/control/main.py 
+python3 ~/uav_project/src/control/main.py 
 
-cd uav_project/src/
+cd ~/uav_project/src/
 python3 -m app.main 

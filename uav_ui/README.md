@@ -4,16 +4,16 @@
 
 当前主要入口：
 
-- [terminal_ui.py](/home/level6/uav_project/src/uav_ui/terminal_ui.py)：curses 终端界面
-- [ui_commands.py](/home/level6/uav_project/src/uav_ui/ui_commands.py)：UI 层命令分发
-- [control_switches.py](/home/level6/uav_project/src/uav_ui/control_switches.py)：control controller 运行时开关
-- [yolo_command_client.py](/home/level6/uav_project/src/uav_ui/yolo_command_client.py)：向 `yolo_app` 发送目标切换 UDP 命令
+- [terminal_ui.py](terminal_ui.py)：curses 终端界面
+- [ui_commands.py](ui_commands.py)：UI 层命令分发
+- [control_switches.py](control_switches.py)：control controller 运行时开关
+- [yolo_command_client.py](yolo_command_client.py)：向 `yolo_app` 发送目标切换 UDP 命令
 
 ## 启动方式
 
 ### 跟随 control 启动
 
-当 [telemetry_link/config.yaml](/home/level6/uav_project/src/telemetry_link/config.yaml) 中：
+当 [telemetry_link/config.yaml](../telemetry_link/config.yaml) 中：
 
 ```yaml
 ui_enabled: true
@@ -73,7 +73,7 @@ switch_source real
 switch_source sitl
 ```
 
-更多格式见 [telemetry_link/command_dispatcher.py](/home/level6/uav_project/src/telemetry_link/command_dispatcher.py)。
+更多格式见 [telemetry_link/command_dispatcher.py](../telemetry_link/command_dispatcher.py)。
 
 ## 目标切换命令
 
@@ -88,7 +88,7 @@ target unlock
 
 这些命令会通过 UDP 发给 `yolo_app.command_receiver`。
 
-默认读取 [yolo_app/config.yaml](/home/level6/uav_project/src/yolo_app/config.yaml) 中：
+默认读取 [yolo_app/config.yaml](../yolo_app/config.yaml) 中：
 
 ```yaml
 command_enabled: true
@@ -135,7 +135,7 @@ controller all off
 controller all toggle
 ```
 
-这些命令只影响当前运行中的 control，不会修改 [control/config.yaml](/home/level6/uav_project/src/control/config.yaml)。
+这些命令只影响当前运行中的 control，不会修改 [control/config.yaml](../control/config.yaml)。
 
 初始值来自：
 
@@ -178,7 +178,7 @@ task auto
 
 注意 `mode GUIDED` 仍然是飞控模式命令；`task mode ...` 才是 app 内部任务模式命令。
 
-初始值来自 [control/config.yaml](/home/level6/uav_project/src/control/config.yaml)：
+初始值来自 [control/config.yaml](../control/config.yaml)：
 
 ```yaml
 executor:

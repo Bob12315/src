@@ -68,7 +68,7 @@ pip install ultralytics opencv-python pyyaml
 如果使用 GPU，请按本机 CUDA 版本安装合适的 PyTorch。模型文件建议放在：
 
 ```text
-/home/level6/models/best.pt
+~/models/best.pt
 ```
 
 大型 `.pt`、日志、缓存文件不建议提交到 Git。
@@ -81,7 +81,7 @@ pip install ultralytics opencv-python pyyaml
 
 ```bash
 conda activate yolo
-cd /home/level6/uav_project/src/yolo_app
+cd ~/uav_project/src/yolo_app
 python main.py
 ```
 
@@ -91,7 +91,7 @@ YOLO 默认通过 UDP JSON 输出主目标。控制端默认监听 `0.0.0.0:5005
 
 ```bash
 conda activate uav-control
-cd /home/level6/uav_project/src
+cd ~/uav_project/src
 python -m app.main --send-commands false
 ```
 
@@ -120,7 +120,7 @@ python -m app.main --connect-telemetry --force-mode APPROACH_TRACK --send-comman
 ## 测试
 
 ```bash
-cd /home/level6/uav_project/src
+cd ~/uav_project/src
 python -m pytest -q
 ```
 

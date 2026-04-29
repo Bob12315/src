@@ -22,7 +22,7 @@ pip install pymavlink pyyaml pytest
 验证：
 
 ```bash
-cd /home/level6/uav_project/src
+cd ~/uav_project/src
 python -m app.main --help
 python -m telemetry_link.main --help
 python -m pytest -q
@@ -51,13 +51,13 @@ PY
 建议路径：
 
 ```text
-/home/level6/models/best.pt
+~/models/best.pt
 ```
 
 然后在 `yolo_app/config.yaml` 中配置：
 
 ```yaml
-model_path: "/home/level6/models/best.pt"
+model_path: "~/models/best.pt"
 ```
 
 不建议把 `.pt` 模型提交到 Git。
@@ -72,7 +72,7 @@ model_path: "/home/level6/models/best.pt"
 
 ```bash
 conda activate uav-control
-cd /home/level6/uav_project/src
+cd ~/uav_project/src
 python -m app.main --no-yolo-udp --run-seconds 1 --send-commands false
 ```
 
@@ -80,6 +80,6 @@ YOLO 环境：
 
 ```bash
 conda activate yolo
-cd /home/level6/uav_project/src/yolo_app
+cd ~/uav_project/src/yolo_app
 python main.py
 ```

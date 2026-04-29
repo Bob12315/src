@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 import subprocess
 import time
 
@@ -69,8 +70,8 @@ class VideoSource:
         return cv2.VideoCapture(capture_source)
 
     def _open_udp_port_source(self, udp_port: int) -> None:
-        helper_path = "/home/level6/uav_project/src/yolo_app/udp_gst_bridge_helper.py"
-        cmd = ["/usr/bin/python3", "-u", helper_path, "--port", str(udp_port)]
+        helper_path = Path(__file__).with_name("udp_gst_bridge_helper.py")
+        cmd = ["/usr/bin/python3", "-u", str(helper_path), "--port", str(udp_port)]
         env = os.environ.copy()
         env["PYTHONNOUSERSITE"] = "1"
         self.udp_process = subprocess.Popen(

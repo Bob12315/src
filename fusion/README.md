@@ -133,7 +133,7 @@ flight_input = adapter.adapt(fused_state)
 
 当前仓库新增了独立的终端 debug 入口：
 
-- [debug_main.py](/home/level6/uav_project/src/fusion/debug_main.py)
+- [debug_main.py](debug_main.py)
 
 它会：
 
@@ -145,9 +145,9 @@ flight_input = adapter.adapt(fused_state)
 启动示例：
 
 ```bash
-cd /home/level6/uav_project/src/fusion
+cd ~/uav_project/src/fusion
 python3 debug_main.py \
-  --telemetry-config /home/level6/uav_project/src/telemetry_link/config.yaml \
+  --telemetry-config ../telemetry_link/config.yaml \
   --yolo-udp-ip 0.0.0.0 \
   --yolo-udp-port 5005 \
   --print-rate-hz 1 \
